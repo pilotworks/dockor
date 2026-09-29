@@ -49,6 +49,7 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Get("/", h.ListStacks)
 			r.Post("/", h.DeployStack)
 			r.Get("/{id}", h.GetStack)
+			r.Put("/{id}", h.UpdateStack)
 			r.Delete("/{id}", h.DeleteStack)
 			r.Post("/{id}/start", h.StartStack)
 			r.Post("/{id}/stop", h.StopStack)

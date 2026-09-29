@@ -91,6 +91,26 @@ func TestStackHandlers_CRUD(t *testing.T) {
 		t.Errorf("expected stack name 'my-test-stack', got %s", fetched.Name)
 	}
 
+	// 2.5 Update Stack via Handler
+	r.Put("/api/v1/stacks/{id}", h.UpdateStack)
+	updatePayload, _ := json.Marshal(map[string]interface{}{
+		"compose_yaml": "version: '3.8'\nservices:\n  redis:\n    image: redis:7-alpine\n",
+		"redeploy":     false,
+	})
+	putReq := httptest.NewRequest("PUT", "/api/v1/stacks/"+stackID, bytes.NewReader(updatePayload))
+	putRec := httptest.NewRecorder()
+	r.ServeHTTP(putRec, putReq)
+
+	if putRec.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK on UpdateStack, got %d", putRec.Result().StatusCode)
+	}
+
+	// Verify updated compose_yaml in repository
+	updatedStack, _ := repo.GetStack(context.Background(), stackID)
+	if updatedStack == nil || !bytes.Contains([]byte(updatedStack.ComposeYAML), []byte("redis:7-alpine")) {
+		t.Errorf("expected updated compose yaml with redis:7-alpine, got %v", updatedStack)
+	}
+
 	// 3. Delete Stack via Handler
 	r.Delete("/api/v1/stacks/{id}", h.DeleteStack)
 	delReq := httptest.NewRequest("DELETE", "/api/v1/stacks/"+stackID, nil)

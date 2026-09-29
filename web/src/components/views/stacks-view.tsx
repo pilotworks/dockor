@@ -7,6 +7,7 @@ import {
   useStopStack,
   useRestartStack,
   usePullStack,
+  useUpdateStack,
 } from '../../hooks/use-stacks';
 import { useContainers } from '../../hooks/use-containers';
 import { api } from '../../lib/api';
@@ -23,12 +24,15 @@ import {
   IconCloudDownload,
   IconFileText,
   IconLoader2,
+  IconDeviceFloppy,
+  IconCopy,
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
+import { ComposeEditor } from '../editor/compose-editor';
 
 export function StacksView() {
   const { data: stacks = [], isLoading } = useStacks();
@@ -38,9 +42,16 @@ export function StacksView() {
   const stopMutation = useStopStack();
   const restartMutation = useRestartStack();
   const pullMutation = usePullStack();
+  const updateMutation = useUpdateStack();
   const navigate = useNavigate();
 
-  const [inspectStack, setInspectStack] = useState<{ name: string; yaml: string } | null>(null);
+  const [editStackModal, setEditStackModal] = useState<{
+    id: string;
+    name: string;
+    yaml: string;
+    originalYaml: string;
+    isSaving: boolean;
+  } | null>(null);
   const [logsModal, setLogsModal] = useState<{ id: string; name: string; logs: string; loading: boolean } | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -110,6 +121,23 @@ export function StacksView() {
       } catch (err: any) {
         toast.error('Failed to delete stack', { description: err.message });
       }
+    }
+  };
+
+  const handleSaveStack = async () => {
+    if (!editStackModal) return;
+    setEditStackModal((prev) => (prev ? { ...prev, isSaving: true } : null));
+    try {
+      await updateMutation.mutateAsync({
+        id: editStackModal.id,
+        compose_yaml: editStackModal.yaml,
+        redeploy: true,
+      });
+      toast.success(`Stack "${editStackModal.name}" updated and redeployed!`);
+      setEditStackModal(null);
+    } catch (err: any) {
+      toast.error('Failed to update stack', { description: err.message });
+      setEditStackModal((prev) => (prev ? { ...prev, isSaving: false } : null));
     }
   };
 
@@ -278,10 +306,16 @@ export function StacksView() {
                           variant="surface"
                           size="sm"
                           onClick={() =>
-                            setInspectStack({ name: stack.name, yaml: stack.compose_yaml })
+                            setEditStackModal({
+                              id: stack.id,
+                              name: stack.name,
+                              yaml: stack.compose_yaml,
+                              originalYaml: stack.compose_yaml,
+                              isSaving: false,
+                            })
                           }
                           className="gap-1.5 text-xs"
-                          title="Inspect compose yaml"
+                          title="Inspect or edit compose yaml"
                         >
                           <IconCode className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                           Compose
@@ -356,17 +390,81 @@ export function StacksView() {
         </div>
       )}
 
-      {/* Inspect Compose Dialog */}
-      {inspectStack && (
-        <Dialog open={Boolean(inspectStack)} onOpenChange={() => setInspectStack(null)}>
-          <DialogContent className="max-w-3xl bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] p-0 overflow-hidden rounded-2xl">
-            <DialogHeader className="p-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D]">
-              <DialogTitle className="text-sm font-mono text-zinc-900 dark:text-zinc-200">
-                {inspectStack.name} / docker-compose.yml
-              </DialogTitle>
+      {/* Monaco Compose Editor & Redeploy Dialog */}
+      {editStackModal && (
+        <Dialog open={Boolean(editStackModal)} onOpenChange={() => setEditStackModal(null)}>
+          <DialogContent className="max-w-4xl h-[82vh] p-0 flex flex-col bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
+            <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <IconCode className="w-4 h-4 text-blue-400" />
+                <DialogTitle className="text-sm font-mono text-zinc-200">
+                  {editStackModal.name} / docker-compose.yml
+                </DialogTitle>
+                {editStackModal.yaml !== editStackModal.originalYaml && (
+                  <Badge variant="warning" className="text-[9px] font-mono px-1.5 py-0">
+                    modified
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mr-6">
+                {editStackModal.yaml !== editStackModal.originalYaml && (
+                  <Button
+                    variant="surface"
+                    size="sm"
+                    onClick={() =>
+                      setEditStackModal((prev) =>
+                        prev ? { ...prev, yaml: prev.originalYaml } : null
+                      )
+                    }
+                    className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+                    title="Revert to original saved YAML"
+                  >
+                    <IconRotateClockwise className="w-3.5 h-3.5" />
+                    Revert
+                  </Button>
+                )}
+
+                <Button
+                  variant="surface"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(editStackModal.yaml);
+                    toast.success('Compose YAML copied to clipboard');
+                  }}
+                  className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+                  title="Copy YAML"
+                >
+                  <IconCopy className="w-3.5 h-3.5" />
+                  Copy
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={editStackModal.isSaving}
+                  onClick={handleSaveStack}
+                  className="h-7 px-3 text-xs gap-1.5 shadow-sm"
+                  title="Save Compose and Redeploy Stack"
+                >
+                  {editStackModal.isSaving ? (
+                    <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <IconDeviceFloppy className="w-3.5 h-3.5" />
+                  )}
+                  {editStackModal.isSaving ? 'Redeploying...' : 'Save & Redeploy'}
+                </Button>
+              </div>
             </DialogHeader>
-            <div className="p-4 max-h-[70vh] overflow-auto bg-zinc-50 dark:bg-[#09090B] font-mono text-xs text-zinc-800 dark:text-zinc-300">
-              <pre className="whitespace-pre">{inspectStack.yaml}</pre>
+
+            <div className="flex-1 w-full h-full min-h-0 bg-[#09090b]">
+              <ComposeEditor
+                value={editStackModal.yaml}
+                onChange={(val) =>
+                  setEditStackModal((prev) => (prev ? { ...prev, yaml: val || '' } : null))
+                }
+                readOnly={false}
+              />
             </div>
           </DialogContent>
         </Dialog>

@@ -32,6 +32,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(handleResponse<Stack>),
+  updateStack: (id: string, data: { compose_yaml: string; redeploy?: boolean }) =>
+    fetch(`${API_BASE}/stacks/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(handleResponse<Stack>),
   startStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/start`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
   stopStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/stop`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
   restartStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/restart`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),

@@ -246,6 +246,57 @@ func (h *APIHandler) GetStack(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, stack)
 }
 
+type UpdateStackRequest struct {
+	ComposeYAML string `json:"compose_yaml"`
+	Redeploy    bool   `json:"redeploy"`
+}
+
+func (h *APIHandler) UpdateStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	var req UpdateStackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if req.ComposeYAML != "" {
+		stack.ComposeYAML = req.ComposeYAML
+	}
+
+	if err := h.repo.UpdateStack(r.Context(), stack); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if req.Redeploy && h.composeSvc != nil {
+		out, err := h.composeSvc.Up(r.Context(), stack)
+		if err != nil {
+			_ = h.repo.UpdateStackStatus(r.Context(), stack.ID, models.StackStatusError)
+			stack.Status = models.StackStatusError
+			writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+				"error":  "Failed to redeploy stack: " + err.Error(),
+				"output": out,
+				"stack":  stack,
+			})
+			return
+		}
+		_ = h.repo.UpdateStackStatus(r.Context(), stack.ID, models.StackStatusRunning)
+		stack.Status = models.StackStatusRunning
+	}
+
+	writeJSON(w, http.StatusOK, stack)
+}
+
 func (h *APIHandler) StartStack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	stack, err := h.repo.GetStack(r.Context(), id)

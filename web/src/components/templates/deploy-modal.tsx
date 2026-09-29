@@ -23,7 +23,13 @@ import {
   IconEye,
   IconEyeOff,
   IconCopy,
+  IconColumns,
+  IconForms,
+  IconRotateClockwise,
+  IconEdit,
 } from '@tabler/icons-react';
+import { ComposeEditor } from '../editor/compose-editor';
+import { cn } from '../../lib/utils';
 
 export function DeployModal() {
   const { activeDeployTemplate: template, closeDeployModal } = useTemplateStore();
@@ -34,6 +40,9 @@ export function DeployModal() {
   const [showSecretMap, setShowSecretMap] = useState<Record<string, boolean>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [renderedCompose, setRenderedCompose] = useState<string>('');
+  const [customYaml, setCustomYaml] = useState<string>('');
+  const [isCustomYaml, setIsCustomYaml] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'split' | 'form' | 'yaml'>('split');
 
   const previewMutation = usePreviewTemplate();
   const deployMutation = useDeployStack();
@@ -46,6 +55,7 @@ export function DeployModal() {
         initial[v.name] = v.default !== undefined ? v.default : '';
       });
       setFormValues(initial);
+      setIsCustomYaml(false);
       triggerPreview(initial);
     }
   }, [template]);
@@ -59,6 +69,9 @@ export function DeployModal() {
       });
       setWarnings(res.warnings || []);
       setRenderedCompose(res.rendered_compose || '');
+      if (!isCustomYaml) {
+        setCustomYaml(res.rendered_compose || '');
+      }
       setFormValues((prev) => ({ ...prev, ...res.evaluated_variables }));
       if (res.warnings && res.warnings.length > 0) {
         toast.warning('Port conflict resolved automatically', {
@@ -81,10 +94,17 @@ export function DeployModal() {
   };
 
   const handleCopyCompose = () => {
-    if (renderedCompose || template?.compose_yaml) {
-      navigator.clipboard.writeText(renderedCompose || template!.compose_yaml || '');
+    const yamlToCopy = isCustomYaml ? customYaml : (renderedCompose || template?.compose_yaml);
+    if (yamlToCopy) {
+      navigator.clipboard.writeText(yamlToCopy);
       toast.success('Compose YAML copied to clipboard');
     }
+  };
+
+  const handleResetToTemplate = () => {
+    setIsCustomYaml(false);
+    setCustomYaml(renderedCompose);
+    toast.info('Reset Compose definition to template dynamic values');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,7 +116,7 @@ export function DeployModal() {
         name: stackName,
         template_id: template.metadata.id,
         variables: formValues,
-        compose_yaml: renderedCompose,
+        compose_yaml: isCustomYaml ? customYaml : renderedCompose,
       });
       toast.success(`Stack "${stackName}" deployed successfully!`);
       closeDeployModal();
@@ -112,11 +132,11 @@ export function DeployModal() {
 
   return (
     <Dialog open={Boolean(template)} onOpenChange={(open) => !open && closeDeployModal()}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
+      <DialogContent className="max-w-6xl h-[88vh] p-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
         {/* Modal Topbar Header */}
-        <div className="px-6 py-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex items-center justify-between shrink-0 transition-colors">
+        <div className="px-6 py-3.5 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex items-center justify-between shrink-0 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-[#141418] border border-blue-200 dark:border-[#272730] flex items-center justify-center p-2 shadow-inner">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-[#141418] border border-blue-200 dark:border-[#272730] flex items-center justify-center p-1.5 shadow-inner">
               {template.metadata.icon ? (
                 <img
                   src={template.metadata.icon}
@@ -141,20 +161,69 @@ export function DeployModal() {
                   v{template.metadata.version}
                 </Badge>
               </div>
-              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
                 Dynamic configuration and conflict-free stack deployment
               </DialogDescription>
             </div>
           </div>
+
+          {/* View Mode Switcher */}
+          <div className="flex items-center bg-zinc-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg border border-zinc-300 dark:border-zinc-700/80">
+            <button
+              type="button"
+              onClick={() => setViewMode('form')}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
+                viewMode === 'form'
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              )}
+              title="Form View Only"
+            >
+              <IconForms className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Form</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
+                viewMode === 'split'
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              )}
+              title="Split View (Form + YAML)"
+            >
+              <IconColumns className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Split</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('yaml')}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
+                viewMode === 'yaml'
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+              )}
+              title="Compose YAML Editor Only"
+            >
+              <IconCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">YAML Editor</span>
+            </button>
+          </div>
         </div>
 
-        {/* 2-Column Split Body */}
+        {/* Body (Supports Split, Form Only, or YAML Editor Only) */}
         <div className="flex-1 flex min-h-0 divide-x divide-zinc-200 dark:divide-[#1F1F24] overflow-hidden">
           {/* Left Column: Form Controls */}
           <form
             id="deploy-form"
             onSubmit={handleSubmit}
-            className="w-1/2 p-6 overflow-y-auto space-y-5"
+            className={cn(
+              'p-6 overflow-y-auto space-y-5 transition-all',
+              viewMode === 'split' ? 'w-1/2' : viewMode === 'form' ? 'w-full' : 'hidden'
+            )}
           >
             {/* Automatic Port Collision Warning Alert */}
             {warnings.length > 0 && (
@@ -175,7 +244,7 @@ export function DeployModal() {
 
             {/* Stack Identifier */}
             <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
+              <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                 Stack Project Name
               </label>
               <Input
@@ -185,18 +254,18 @@ export function DeployModal() {
                 placeholder="production-app-stack"
                 className="font-mono"
               />
-              <p className="text-[10px] text-zinc-400">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                 Unique identifier for this compose deployment in Docker Engine.
               </p>
             </div>
 
             {/* Variable Fields */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between border-b border-[#23232A] pb-2">
-                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[#23232A] pb-2">
+                <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                   Template Variables
                 </span>
-                <span className="text-[10px] text-zinc-400 font-mono">
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
                   {template.variables?.length || 0} parameter(s)
                 </span>
               </div>
@@ -286,33 +355,87 @@ export function DeployModal() {
             </div>
           </form>
 
-          {/* Right Column: Live Compose YAML Preview */}
-          <div className="w-1/2 bg-zinc-900 dark:bg-[#09090B] flex flex-col min-h-0">
-            <div className="px-4 py-2.5 border-b border-zinc-800 dark:border-[#1F1F24] bg-zinc-950 dark:bg-[#0E0E12] flex items-center justify-between">
+          {/* Right Column: Monaco Compose Editor */}
+          <div
+            className={cn(
+              'bg-[#09090B] flex flex-col min-h-0 transition-all',
+              viewMode === 'split' ? 'w-1/2' : viewMode === 'yaml' ? 'w-full' : 'hidden'
+            )}
+          >
+            {/* Editor Subheader Toolbar */}
+            <div className="px-4 py-2.5 border-b border-zinc-800 bg-[#0E0E12] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <IconCode className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-semibold text-zinc-300 font-mono">
+                <span className="text-xs font-semibold text-zinc-200 font-mono">
                   docker-compose.yml
                 </span>
-                <Badge variant="neutral" className="text-[9px] font-mono">
-                  live preview
+                <Badge
+                  variant={isCustomYaml ? 'warning' : 'neutral'}
+                  className="text-[9px] font-mono px-1.5 py-0"
+                >
+                  {isCustomYaml ? 'customized' : 'live preview'}
                 </Badge>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleCopyCompose}
-                title="Copy YAML"
-              >
-                <IconCopy className="w-3.5 h-3.5 text-zinc-400" />
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {isCustomYaml && (
+                  <Button
+                    type="button"
+                    variant="surface"
+                    size="sm"
+                    onClick={handleResetToTemplate}
+                    className="h-6 px-2 text-[10px] gap-1 text-zinc-300 hover:text-white"
+                    title="Reset to template defaults"
+                  >
+                    <IconRotateClockwise className="w-3 h-3" />
+                    Reset
+                  </Button>
+                )}
+
+                <Button
+                  type="button"
+                  variant={isCustomYaml ? 'primary' : 'surface'}
+                  size="sm"
+                  onClick={() => {
+                    if (!isCustomYaml) {
+                      setIsCustomYaml(true);
+                      setCustomYaml(renderedCompose || template.compose_yaml || '');
+                      toast.info('YAML unlocked for direct custom editing');
+                    } else {
+                      setIsCustomYaml(false);
+                      toast.info('Switched to dynamic template sync preview');
+                    }
+                  }}
+                  className="h-6 px-2 text-[10px] gap-1"
+                  title="Toggle Custom YAML Editing"
+                >
+                  <IconEdit className="w-3 h-3" />
+                  {isCustomYaml ? 'Editing YAML' : 'Customize YAML'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleCopyCompose}
+                  title="Copy YAML"
+                  className="h-6 w-6 text-zinc-400 hover:text-zinc-200"
+                >
+                  <IconCopy className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
 
-            <div className="flex-1 p-4 overflow-auto font-mono text-[11px] text-zinc-300 bg-zinc-900 dark:bg-[#09090B] leading-relaxed selection:bg-blue-600/30">
-              <pre className="whitespace-pre">
-                {renderedCompose || template.compose_yaml || '# No compose definition available'}
-              </pre>
+            {/* Monaco Editor Container */}
+            <div className="flex-1 w-full h-full min-h-0 bg-[#09090B]">
+              <ComposeEditor
+                value={isCustomYaml ? customYaml : (renderedCompose || template.compose_yaml || '# No compose definition')}
+                onChange={(val) => {
+                  setCustomYaml(val || '');
+                  if (!isCustomYaml) setIsCustomYaml(true);
+                }}
+                readOnly={false}
+              />
             </div>
           </div>
         </div>

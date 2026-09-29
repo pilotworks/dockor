@@ -21,6 +21,18 @@ export function useDeployStack() {
   });
 }
 
+export function useUpdateStack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, compose_yaml, redeploy = true }: { id: string; compose_yaml: string; redeploy?: boolean }) =>
+      api.updateStack(id, { compose_yaml, redeploy }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    },
+  });
+}
+
 export function useStartStack() {
   const queryClient = useQueryClient();
   return useMutation({
