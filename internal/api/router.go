@@ -63,6 +63,8 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/start", h.StartContainer)
 			r.Post("/{id}/stop", h.StopContainer)
 			r.Post("/{id}/restart", h.RestartContainer)
+			r.Get("/{id}/logs", h.ContainerLogs)
+			r.Get("/{id}/exec", h.ContainerExec)
 		})
 
 		// Nodes

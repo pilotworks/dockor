@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/moby/moby/client"
 	"github.com/pilotworks/dockor/internal/models"
@@ -135,5 +136,69 @@ func (ds *DockerService) StopContainer(ctx context.Context, id string) error {
 func (ds *DockerService) RestartContainer(ctx context.Context, id string) error {
 	timeout := 10
 	_, err := ds.cli.ContainerRestart(ctx, id, client.ContainerRestartOptions{Timeout: &timeout})
+	return err
+}
+
+func (ds *DockerService) GetContainerLogs(ctx context.Context, id string, follow bool, tail string) (io.ReadCloser, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+	if tail == "" {
+		tail = "150"
+	}
+	opts := client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     follow,
+		Tail:       tail,
+		Timestamps: true,
+	}
+	return ds.cli.ContainerLogs(ctx, id, opts)
+}
+
+func (ds *DockerService) ExecCreate(ctx context.Context, id string, cmd []string, tty bool) (string, error) {
+	if ds.cli == nil {
+		return "", fmt.Errorf("docker client not initialized")
+	}
+	if len(cmd) == 0 {
+		cmd = []string{"/bin/sh"}
+	}
+	opts := client.ExecCreateOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		TTY:          tty,
+		Cmd:          cmd,
+	}
+	res, err := ds.cli.ExecCreate(ctx, id, opts)
+	if err != nil {
+		return "", err
+	}
+	return res.ID, nil
+}
+
+func (ds *DockerService) ExecAttach(ctx context.Context, execID string, tty bool) (client.HijackedResponse, error) {
+	if ds.cli == nil {
+		return client.HijackedResponse{}, fmt.Errorf("docker client not initialized")
+	}
+	opts := client.ExecAttachOptions{
+		TTY: tty,
+	}
+	res, err := ds.cli.ExecAttach(ctx, execID, opts)
+	if err != nil {
+		return client.HijackedResponse{}, err
+	}
+	return res.HijackedResponse, nil
+}
+
+func (ds *DockerService) ExecResize(ctx context.Context, execID string, height, width uint) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+	opts := client.ExecResizeOptions{
+		Height: height,
+		Width:  width,
+	}
+	_, err := ds.cli.ExecResize(ctx, execID, opts)
 	return err
 }

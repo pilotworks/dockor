@@ -22,12 +22,16 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { ContainerTerminalModal } from '../containers/container-terminal-modal';
+import { ContainerLogsModal } from '../containers/container-logs-modal';
 
 export function ContainersView() {
   const { data: containers = [], isLoading } = useContainers();
   const actionMutation = useContainerAction();
   const [filterState, setFilterState] = useState<'all' | 'running' | 'stopped'>('all');
   const [search, setSearch] = useState('');
+  const [terminalContainer, setTerminalContainer] = useState<{ id: string; name: string } | null>(null);
+  const [logsContainer, setLogsContainer] = useState<{ id: string; name: string } | null>(null);
 
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart', name: string) => {
     try {
@@ -234,11 +238,32 @@ export function ContainersView() {
                           <Button
                             variant="surface"
                             size="icon-sm"
+                            disabled={!isRunning}
+                            onClick={() => setTerminalContainer({ id: c.id, name: containerName })}
+                            title={isRunning ? 'Exec Terminal (xterm.js)' : 'Container must be running to exec shell'}
+                            className={cn(isRunning ? 'text-blue-500 dark:text-blue-400 hover:text-blue-600' : 'opacity-30 cursor-not-allowed')}
+                          >
+                            <IconTerminal2 className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="surface"
+                            size="icon-sm"
+                            onClick={() => setLogsContainer({ id: c.id, name: containerName })}
+                            title="View Live Logs"
+                          >
+                            <IconFileText className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-200" />
+                          </Button>
+
+                          <Button
+                            variant="surface"
+                            size="icon-sm"
                             onClick={() => handleAction(c.id, 'restart', containerName)}
-                            title="Restart"
+                            title="Restart Container"
                           >
                             <IconRotateClockwise className="w-3.5 h-3.5 text-zinc-400" />
                           </Button>
+
                           <Button
                             variant={isRunning ? 'surface' : 'primary'}
                             size="icon-sm"
@@ -264,17 +289,14 @@ export function ContainersView() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() =>
-                                  toast.info(`Attach terminal to ${containerName} (WS streaming)`)
-                                }
+                                disabled={!isRunning}
+                                onClick={() => setTerminalContainer({ id: c.id, name: containerName })}
                               >
                                 <IconTerminal2 className="w-3.5 h-3.5 text-blue-400" />
                                 <span>Exec Shell Terminal</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() =>
-                                  toast.info(`Fetching live logs for ${containerName}`)
-                                }
+                                onClick={() => setLogsContainer({ id: c.id, name: containerName })}
                               >
                                 <IconFileText className="w-3.5 h-3.5 text-zinc-400" />
                                 <span>View Container Logs</span>
@@ -298,6 +320,26 @@ export function ContainersView() {
           </table>
         </div>
       </div>
+
+      {/* Terminal Modal */}
+      {terminalContainer && (
+        <ContainerTerminalModal
+          containerId={terminalContainer.id}
+          containerName={terminalContainer.name}
+          isOpen={Boolean(terminalContainer)}
+          onClose={() => setTerminalContainer(null)}
+        />
+      )}
+
+      {/* Logs Modal */}
+      {logsContainer && (
+        <ContainerLogsModal
+          containerId={logsContainer.id}
+          containerName={logsContainer.name}
+          isOpen={Boolean(logsContainer)}
+          onClose={() => setLogsContainer(null)}
+        />
+      )}
     </div>
   );
 }
