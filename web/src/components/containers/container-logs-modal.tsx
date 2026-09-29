@@ -196,7 +196,7 @@ export function ContainerLogsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 flex flex-col bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
+      <DialogContent className="max-w-5xl h-[80vh] p-0 gap-0 flex flex-col bg-[#09090b] dark:bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
         {/* Top Header */}
         <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
