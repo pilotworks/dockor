@@ -202,3 +202,17 @@ func (ds *DockerService) ExecResize(ctx context.Context, execID string, height, 
 	_, err := ds.cli.ExecResize(ctx, execID, opts)
 	return err
 }
+
+func (ds *DockerService) GetContainerStats(ctx context.Context, id string, stream bool) (io.ReadCloser, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+	opts := client.ContainerStatsOptions{
+		Stream: stream,
+	}
+	res, err := ds.cli.ContainerStats(ctx, id, opts)
+	if err != nil {
+		return nil, err
+	}
+	return res.Body, nil
+}

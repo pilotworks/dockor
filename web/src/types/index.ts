@@ -72,3 +72,23 @@ export interface Node {
   endpoint?: string;
   last_seen_at: string;
 }
+
+export interface ContainerStatsData {
+  timestamp: string;
+  cpu_percent: number;
+  per_cpu_usage?: number[];
+  online_cpus: number;
+  memory_usage: number;
+  memory_limit: number;
+  memory_percent: number;
+  memory_cache: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  network_rx_rate: number;
+  network_tx_rate: number;
+  block_read_bytes: number;
+  block_write_bytes: number;
+  block_read_rate: number;
+  block_write_rate: number;
+  pids_count: number;
+}

@@ -8,6 +8,7 @@ import {
   IconExternalLink,
   IconTerminal2,
   IconFileText,
+  IconActivity,
   IconTrash,
   IconCircleFilled,
 } from '@tabler/icons-react';
@@ -24,6 +25,7 @@ import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
+import { ContainerStatsModal } from '../containers/container-stats-modal';
 
 export function ContainersView() {
   const { data: containers = [], isLoading } = useContainers();
@@ -32,6 +34,7 @@ export function ContainersView() {
   const [search, setSearch] = useState('');
   const [terminalContainer, setTerminalContainer] = useState<{ id: string; name: string } | null>(null);
   const [logsContainer, setLogsContainer] = useState<{ id: string; name: string } | null>(null);
+  const [statsContainer, setStatsContainer] = useState<{ id: string; name: string } | null>(null);
 
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart', name: string) => {
     try {
@@ -258,6 +261,17 @@ export function ContainersView() {
                           <Button
                             variant="surface"
                             size="icon-sm"
+                            disabled={!isRunning}
+                            onClick={() => setStatsContainer({ id: c.id, name: containerName })}
+                            title={isRunning ? 'Live Telemetry & Resource Stats' : 'Container must be running to view stats'}
+                            className={cn(isRunning ? 'text-purple-400 hover:text-purple-300' : 'opacity-30 cursor-not-allowed')}
+                          >
+                            <IconActivity className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="surface"
+                            size="icon-sm"
                             onClick={() => handleAction(c.id, 'restart', containerName)}
                             title="Restart Container"
                           >
@@ -301,6 +315,13 @@ export function ContainersView() {
                                 <IconFileText className="w-3.5 h-3.5 text-zinc-400" />
                                 <span>View Container Logs</span>
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!isRunning}
+                                onClick={() => setStatsContainer({ id: c.id, name: containerName })}
+                              >
+                                <IconActivity className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Live Telemetry & Stats</span>
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleAction(c.id, 'stop', containerName)}
@@ -338,6 +359,16 @@ export function ContainersView() {
           containerName={logsContainer.name}
           isOpen={Boolean(logsContainer)}
           onClose={() => setLogsContainer(null)}
+        />
+      )}
+
+      {/* Stats Modal */}
+      {statsContainer && (
+        <ContainerStatsModal
+          containerId={statsContainer.id}
+          containerName={statsContainer.name}
+          isOpen={Boolean(statsContainer)}
+          onClose={() => setStatsContainer(null)}
         />
       )}
     </div>

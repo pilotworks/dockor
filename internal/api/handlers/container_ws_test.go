@@ -29,6 +29,7 @@ func TestContainerLogs_NoDocker(t *testing.T) {
 	r := chi.NewRouter()
 	r.Get("/api/v1/containers/{id}/logs", h.ContainerLogs)
 	r.Get("/api/v1/containers/{id}/exec", h.ContainerExec)
+	r.Get("/api/v1/containers/{id}/stats", h.ContainerStats)
 
 	// Test Logs endpoint with nil dockerSvc
 	req := httptest.NewRequest("GET", "/api/v1/containers/c_123/logs", nil)
@@ -46,5 +47,14 @@ func TestContainerLogs_NoDocker(t *testing.T) {
 
 	if recExec.Result().StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("expected 503 Service Unavailable, got %d", recExec.Result().StatusCode)
+	}
+
+	// Test Stats endpoint with nil dockerSvc
+	reqStats := httptest.NewRequest("GET", "/api/v1/containers/c_123/stats", nil)
+	recStats := httptest.NewRecorder()
+	r.ServeHTTP(recStats, reqStats)
+
+	if recStats.Result().StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 Service Unavailable, got %d", recStats.Result().StatusCode)
 	}
 }

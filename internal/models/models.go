@@ -162,3 +162,23 @@ type ContainerSummary struct {
 	Ports      []ContainerPort `json:"ports"`
 	StackName  string          `json:"stack_name,omitempty"`
 }
+
+type ContainerStatsData struct {
+	Timestamp       time.Time `json:"timestamp"`
+	CPUPercent      float64   `json:"cpu_percent"`
+	PerCPUUsage     []float64 `json:"per_cpu_usage,omitempty"`
+	OnlineCPUs      int       `json:"online_cpus"`
+	MemoryUsage     uint64    `json:"memory_usage"`
+	MemoryLimit     uint64    `json:"memory_limit"`
+	MemoryPercent   float64   `json:"memory_percent"`
+	MemoryCache     uint64    `json:"memory_cache"`
+	NetworkRxBytes  uint64    `json:"network_rx_bytes"`
+	NetworkTxBytes  uint64    `json:"network_tx_bytes"`
+	NetworkRxRate   float64   `json:"network_rx_rate"`
+	NetworkTxRate   float64   `json:"network_tx_rate"`
+	BlockReadBytes  uint64    `json:"block_read_bytes"`
+	BlockWriteBytes uint64    `json:"block_write_bytes"`
+	BlockReadRate   float64   `json:"block_read_rate"`
+	BlockWriteRate  float64   `json:"block_write_rate"`
+	PidsCount       uint64    `json:"pids_count"`
+}

@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/pilotworks/dockor/internal/models"
 )
 
 var wsUpgrader = websocket.Upgrader{
@@ -201,4 +205,217 @@ func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
 	}
 
 	<-done
+}
+
+// ContainerStats streams real-time container resource statistics via WebSocket or plain JSON
+func (h *APIHandler) ContainerStats(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service unavailable")
+		return
+	}
+
+	id := chi.URLParam(r, "id")
+
+	// 1. WebSocket Streaming Mode
+	if websocket.IsWebSocketUpgrade(r) {
+		conn, err := wsUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("[WS] Upgrade error for container stats: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Read pump to catch client disconnect
+		go func() {
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					cancel()
+					return
+				}
+			}
+		}()
+
+		statsReader, err := h.dockerSvc.GetContainerStats(ctx, id, true)
+		if err != nil {
+			_ = conn.WriteJSON(map[string]string{"error": "Failed to stream stats: " + err.Error()})
+			return
+		}
+		defer statsReader.Close()
+
+		dec := json.NewDecoder(statsReader)
+		var prevStats *container.StatsResponse
+		var prevTime time.Time
+		var prevRx, prevTx uint64
+		var prevRead, prevWrite uint64
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			var rawStats container.StatsResponse
+			if err := dec.Decode(&rawStats); err != nil {
+				if err != io.EOF && ctx.Err() == nil {
+					log.Printf("[WS] Error decoding stats for container %s: %v", id, err)
+				}
+				return
+			}
+
+			now := time.Now()
+			timeDelta := 1.0
+			if !prevTime.IsZero() {
+				diff := now.Sub(prevTime).Seconds()
+				if diff > 0 {
+					timeDelta = diff
+				}
+			}
+
+			statsData := computeStatsData(&rawStats, prevStats, timeDelta, prevRx, prevTx, prevRead, prevWrite)
+
+			// Update previous values for next delta calculation
+			prevStats = &rawStats
+			prevTime = now
+			prevRx = statsData.NetworkRxBytes
+			prevTx = statsData.NetworkTxBytes
+			prevRead = statsData.BlockReadBytes
+			prevWrite = statsData.BlockWriteBytes
+
+			if err := conn.WriteJSON(statsData); err != nil {
+				return
+			}
+		}
+	}
+
+	// 2. Plain HTTP fallback (one-shot snapshot)
+	statsReader, err := h.dockerSvc.GetContainerStats(r.Context(), id, false)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to get container stats: "+err.Error())
+		return
+	}
+	defer statsReader.Close()
+
+	var rawStats container.StatsResponse
+	if err := json.NewDecoder(statsReader).Decode(&rawStats); err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to decode container stats: "+err.Error())
+		return
+	}
+
+	data := computeStatsData(&rawStats, nil, 0, 0, 0, 0, 0)
+	writeJSON(w, http.StatusOK, data)
+}
+
+func computeStatsData(raw *container.StatsResponse, prev *container.StatsResponse, timeDelta float64, prevRx, prevTx, prevRead, prevWrite uint64) models.ContainerStatsData {
+	data := models.ContainerStatsData{
+		Timestamp:   time.Now(),
+		MemoryLimit: raw.MemoryStats.Limit,
+	}
+
+	// 1. CPU Percentage Calculation
+	cpuDelta := float64(raw.CPUStats.CPUUsage.TotalUsage) - float64(raw.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(raw.CPUStats.SystemUsage) - float64(raw.PreCPUStats.SystemUsage)
+
+	if prev != nil && (cpuDelta <= 0 || systemDelta <= 0) {
+		cpuDelta = float64(raw.CPUStats.CPUUsage.TotalUsage) - float64(prev.CPUStats.CPUUsage.TotalUsage)
+		systemDelta = float64(raw.CPUStats.SystemUsage) - float64(prev.CPUStats.SystemUsage)
+	}
+
+	onlineCPUs := int(raw.CPUStats.OnlineCPUs)
+	if onlineCPUs == 0 {
+		onlineCPUs = len(raw.CPUStats.CPUUsage.PercpuUsage)
+	}
+	if onlineCPUs == 0 {
+		onlineCPUs = 1
+	}
+	data.OnlineCPUs = onlineCPUs
+
+	if systemDelta > 0 && cpuDelta > 0 {
+		data.CPUPercent = math.Round(((cpuDelta/systemDelta)*float64(onlineCPUs)*100.0)*100) / 100
+	}
+
+	// Per-core CPU breakdown
+	if len(raw.CPUStats.CPUUsage.PercpuUsage) > 0 && systemDelta > 0 {
+		var prevPercpu []uint64
+		if len(raw.PreCPUStats.CPUUsage.PercpuUsage) == len(raw.CPUStats.CPUUsage.PercpuUsage) {
+			prevPercpu = raw.PreCPUStats.CPUUsage.PercpuUsage
+		} else if prev != nil && len(prev.CPUStats.CPUUsage.PercpuUsage) == len(raw.CPUStats.CPUUsage.PercpuUsage) {
+			prevPercpu = prev.CPUStats.CPUUsage.PercpuUsage
+		}
+
+		if len(prevPercpu) == len(raw.CPUStats.CPUUsage.PercpuUsage) {
+			for i, cur := range raw.CPUStats.CPUUsage.PercpuUsage {
+				cDelta := float64(cur) - float64(prevPercpu[i])
+				if cDelta > 0 {
+					corePct := math.Round(((cDelta/systemDelta)*100.0)*10) / 10
+					data.PerCPUUsage = append(data.PerCPUUsage, corePct)
+				} else {
+					data.PerCPUUsage = append(data.PerCPUUsage, 0)
+				}
+			}
+		}
+	}
+
+	// 2. Memory Usage & Cache
+	var cache uint64
+	if val, ok := raw.MemoryStats.Stats["cache"]; ok {
+		cache = val
+	} else if val, ok := raw.MemoryStats.Stats["inactive_file"]; ok {
+		cache = val
+	}
+	data.MemoryCache = cache
+
+	usedMemory := raw.MemoryStats.Usage
+	if usedMemory >= cache {
+		usedMemory -= cache
+	}
+	data.MemoryUsage = usedMemory
+
+	if data.MemoryLimit > 0 {
+		data.MemoryPercent = math.Round((float64(usedMemory)/float64(data.MemoryLimit)*100.0)*100) / 100
+	}
+
+	// 3. Network I/O
+	var totalRx, totalTx uint64
+	for _, net := range raw.Networks {
+		totalRx += net.RxBytes
+		totalTx += net.TxBytes
+	}
+	data.NetworkRxBytes = totalRx
+	data.NetworkTxBytes = totalTx
+
+	if timeDelta > 0 && prevRx > 0 && totalRx >= prevRx {
+		data.NetworkRxRate = math.Round((float64(totalRx-prevRx)/timeDelta)*10) / 10
+	}
+	if timeDelta > 0 && prevTx > 0 && totalTx >= prevTx {
+		data.NetworkTxRate = math.Round((float64(totalTx-prevTx)/timeDelta)*10) / 10
+	}
+
+	// 4. Block I/O
+	var totalRead, totalWrite uint64
+	for _, entry := range raw.BlkioStats.IoServiceBytesRecursive {
+		switch strings.ToLower(entry.Op) {
+		case "read":
+			totalRead += entry.Value
+		case "write":
+			totalWrite += entry.Value
+		}
+	}
+	data.BlockReadBytes = totalRead
+	data.BlockWriteBytes = totalWrite
+
+	if timeDelta > 0 && prevRead > 0 && totalRead >= prevRead {
+		data.BlockReadRate = math.Round((float64(totalRead-prevRead)/timeDelta)*10) / 10
+	}
+	if timeDelta > 0 && prevWrite > 0 && totalWrite >= prevWrite {
+		data.BlockWriteRate = math.Round((float64(totalWrite-prevWrite)/timeDelta)*10) / 10
+	}
+
+	// 5. PIDs count
+	data.PidsCount = raw.PidsStats.Current
+
+	return data
 }

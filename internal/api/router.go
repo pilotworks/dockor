@@ -66,6 +66,7 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/restart", h.RestartContainer)
 			r.Get("/{id}/logs", h.ContainerLogs)
 			r.Get("/{id}/exec", h.ContainerExec)
+			r.Get("/{id}/stats", h.ContainerStats)
 		})
 
 		// Nodes
@@ -78,6 +79,7 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 	r.Route("/ws", func(r chi.Router) {
 		r.Get("/containers/{id}/logs", h.ContainerLogs)
 		r.Get("/containers/{id}/exec", h.ContainerExec)
+		r.Get("/containers/{id}/stats", h.ContainerStats)
 	})
 
 	return r
