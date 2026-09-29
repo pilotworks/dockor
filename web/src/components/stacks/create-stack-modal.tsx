@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
 import {
   IconStack2,
   IconCode,
@@ -233,13 +234,13 @@ export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModa
             <label htmlFor="stack-name" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">
               Stack Name:
             </label>
-            <input
+            <Input
               id="stack-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
               placeholder="e.g. production-api"
-              className="flex-1 h-8 px-3 text-xs font-mono bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#272730] rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-blue-500 transition-colors"
+              className="flex-1 h-8 font-mono"
             />
           </div>
 

@@ -27,6 +27,7 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { Input } from '../ui/input';
 import {
   Select,
   SelectContent,
@@ -534,12 +535,12 @@ export function ContainerDetailView() {
                 </span>
               </div>
               <div className="w-full sm:w-64">
-                <input
+                <Input
                   type="text"
                   placeholder="Search variables..."
                   value={envSearch}
                   onChange={(e) => setEnvSearch(e.target.value)}
-                  className="w-full h-7 px-2.5 bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-mono text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="h-8 font-mono"
                 />
               </div>
             </div>

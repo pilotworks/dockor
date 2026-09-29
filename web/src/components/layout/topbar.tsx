@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/use-app-store';
 import { useTemplateStore } from '../../stores/use-template-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import { SystemPruneModal } from '../system/system-prune-modal';
 
@@ -94,13 +95,13 @@ export function Topbar() {
       <div className="flex items-center gap-2.5">
         {/* Global Quick Filter / Search */}
         <div className="relative w-64">
-          <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
-          <input
+          <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none" />
+          <Input
             type="text"
             placeholder="Search resources... (⌘K)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-8 pl-8 pr-12 bg-zinc-50 dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-lg text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 transition-colors shadow-inner"
+            className="pl-8 pr-12 h-8"
           />
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-400 dark:text-zinc-500 bg-zinc-200/60 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-700/50 pointer-events-none">
             ⌘K

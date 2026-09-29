@@ -40,6 +40,7 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { Input } from '../ui/input';
 import { ComposeEditor } from '../editor/compose-editor';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
@@ -715,13 +716,13 @@ export function StackDetailView() {
 
             <div className="w-full sm:w-64">
               <div className="relative">
-                <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                <input
+                <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 z-10 pointer-events-none" />
+                <Input
                   type="text"
                   placeholder="Filter environment keys..."
                   value={envFilter}
                   onChange={(e) => setEnvFilter(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#0A0A0E] text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="pl-8 h-8"
                 />
               </div>
             </div>
@@ -795,41 +796,43 @@ export function StackDetailView() {
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <span className="text-xs text-zinc-400">Filter:</span>
               <div className="relative flex-1 sm:w-64">
-                <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                <input
+                <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 z-10 pointer-events-none" />
+                <Input
                   type="text"
                   placeholder="Grep compose logs..."
                   value={logFilter}
                   onChange={(e) => setLogFilter(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-[#272730] bg-[#121216] text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                  className="pl-8 h-8 font-mono bg-[#121216] border-[#272730] text-zinc-200"
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-auto">
-              <button
+              <Button
+                variant={autoScrollLogs ? 'primary' : 'surface'}
+                size="sm"
                 onClick={() => setAutoScrollLogs(!autoScrollLogs)}
-                className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                  autoScrollLogs
-                    ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                    : 'border-[#272730] text-zinc-400 hover:text-zinc-200'
-                }`}
+                className="text-xs h-8"
               >
                 Auto-scroll: {autoScrollLogs ? 'ON' : 'OFF'}
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="surface"
+                size="icon-sm"
                 onClick={() => refetchLogs()}
                 disabled={isFetchingLogs}
-                className="p-1.5 text-zinc-400 hover:text-zinc-200 rounded border border-[#272730] hover:bg-[#1A1A22]"
+                className="h-8 w-8"
                 title="Refresh Logs"
               >
                 <IconRefresh className={`w-3.5 h-3.5 ${isFetchingLogs ? 'animate-spin' : ''}`} />
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="surface"
+                size="icon-sm"
                 onClick={() => handleCopy(filteredLogs, 'Stack Logs')}
-                className="p-1.5 text-zinc-400 hover:text-zinc-200 rounded border border-[#272730] hover:bg-[#1A1A22]"
+                className="h-8 w-8"
                 title="Copy All Filtered Logs"
               >
                 {copiedKey === 'Stack Logs' ? (
@@ -837,7 +840,7 @@ export function StackDetailView() {
                 ) : (
                   <IconCopy className="w-3.5 h-3.5" />
                 )}
-              </button>
+              </Button>
             </div>
           </div>
 

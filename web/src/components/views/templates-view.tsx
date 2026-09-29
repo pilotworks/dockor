@@ -3,6 +3,7 @@ import { useTemplateStore } from '../../stores/use-template-store';
 import { TemplateCard } from '../templates/template-card';
 import { IconSearch, IconTemplate, IconSparkles } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
+import { Input } from '../ui/input';
 
 export function TemplatesView() {
   const { data: templates = [], isLoading, error } = useTemplates();
@@ -40,13 +41,13 @@ export function TemplatesView() {
 
           {/* Quick Search */}
           <div className="relative w-full md:w-72 shrink-0">
-            <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
-            <input
+            <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none" />
+            <Input
               type="text"
               placeholder="Search templates or tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-9 pl-9 pr-4 bg-white dark:bg-[#0A0A0D] border border-zinc-200 dark:border-[#272730] rounded-xl text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 shadow-sm dark:shadow-inner transition-colors"
+              className="pl-9 pr-4 h-9 rounded-xl"
             />
           </div>
         </div>

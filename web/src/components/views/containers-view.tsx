@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -71,51 +72,42 @@ export function ContainersView() {
       {/* Top Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] rounded-xl p-3 transition-colors">
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
+            variant={filterState === 'all' ? 'surface' : 'ghost'}
+            size="sm"
             onClick={() => setFilterState('all')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-              filterState === 'all'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            )}
+            className={filterState === 'all' ? 'shadow-sm' : 'text-zinc-500'}
           >
             All Containers ({containers.length})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={filterState === 'running' ? 'surface' : 'ghost'}
+            size="sm"
             onClick={() => setFilterState('running')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5',
-              filterState === 'running'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            )}
+            className={filterState === 'running' ? 'shadow-sm' : 'text-zinc-500'}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 mr-1.5" />
             Running ({totalRunning})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={filterState === 'stopped' ? 'surface' : 'ghost'}
+            size="sm"
             onClick={() => setFilterState('stopped')}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5',
-              filterState === 'stopped'
-                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm border border-zinc-200 dark:border-zinc-700'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-            )}
+            className={filterState === 'stopped' ? 'shadow-sm' : 'text-zinc-500'}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500 mr-1.5" />
             Stopped ({containers.length - totalRunning})
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="w-full sm:w-64">
-            <input
+            <Input
               type="text"
               placeholder="Filter containers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-8 px-3 bg-white dark:bg-[#0A0A0C] border border-zinc-200 dark:border-[#272730] rounded-lg text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 shadow-sm dark:shadow-none transition-colors"
+              className="h-8"
             />
           </div>
 
