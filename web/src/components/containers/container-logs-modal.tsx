@@ -81,31 +81,86 @@ export function ContainerLogsModal({
     const host = window.location.host;
     const wsUrl = `${proto}//${host}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
 
-    const ws = new WebSocket(wsUrl);
-    socketRef.current = ws;
+    let hasOpened = false;
+    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
+    const textDecoder = new TextDecoder();
 
-    ws.onopen = () => {
-      setStatus('connected');
-    };
+    const setupWsHandlers = (targetWs: WebSocket) => {
+      targetWs.binaryType = 'arraybuffer';
+      socketRef.current = targetWs;
 
-    ws.onmessage = (event) => {
-      if (typeof event.data === 'string') {
-        logsBufferRef.current += event.data;
-        term.write(event.data);
-        if (autoScroll) {
-          term.scrollToBottom();
+      targetWs.onopen = () => {
+        hasOpened = true;
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
         }
-      }
+        setStatus('connected');
+      };
+
+      targetWs.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          logsBufferRef.current += event.data;
+          term.write(event.data);
+          if (autoScroll) {
+            term.scrollToBottom();
+          }
+        } else if (event.data instanceof ArrayBuffer) {
+          const text = textDecoder.decode(event.data);
+          logsBufferRef.current += text;
+          term.write(new Uint8Array(event.data));
+          if (autoScroll) {
+            term.scrollToBottom();
+          }
+        }
+      };
+
+      const triggerFallback = () => {
+        if (!hasOpened && window.location.port === '5173') {
+          hasOpened = true; // prevent infinite fallback loop
+          if (fallbackTimeout) {
+            clearTimeout(fallbackTimeout);
+            fallbackTimeout = null;
+          }
+          targetWs.close();
+          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+          console.log('[Logs WS] Falling back directly to backend on port 9000:', fallbackUrl);
+          const fallbackWs = new WebSocket(fallbackUrl);
+          setupWsHandlers(fallbackWs);
+          return true;
+        }
+        return false;
+      };
+
+      targetWs.onerror = (e) => {
+        console.warn('[Logs WS Error]', e);
+        if (triggerFallback()) return;
+        setStatus('disconnected');
+        term.writeln('\r\n\x1b[31m[WebSocket connection error: Check if backend is reachable]\x1b[0m');
+      };
+
+      targetWs.onclose = () => {
+        if (triggerFallback()) return;
+        setStatus('disconnected');
+      };
     };
 
-    ws.onerror = () => {
-      setStatus('disconnected');
-      term.writeln('\r\n\x1b[31m[WebSocket connection error]\x1b[0m');
-    };
+    const initialWs = new WebSocket(wsUrl);
+    setupWsHandlers(initialWs);
 
-    ws.onclose = () => {
-      setStatus('disconnected');
-    };
+    // If still in CONNECTING after 2.5s on Vite dev port 5173, force fallback to backend port 9000
+    if (window.location.port === '5173') {
+      fallbackTimeout = setTimeout(() => {
+        if (!hasOpened && socketRef.current?.readyState === WebSocket.CONNECTING) {
+          console.log('[Logs WS] Connection timed out on proxy, switching directly to port 9000...');
+          socketRef.current.close();
+          hasOpened = true;
+          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+          const fallbackWs = new WebSocket(fallbackUrl);
+          setupWsHandlers(fallbackWs);
+        }
+      }, 2500);
+    }
 
     const handleResize = () => {
       fitAddonInstance.current?.fit();
@@ -116,14 +171,15 @@ export function ContainerLogsModal({
 
     return () => {
       clearTimeout(timer);
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       window.removeEventListener('resize', handleResize);
-      ws.close();
+      socketRef.current?.close();
       term.dispose();
       xtermInstance.current = null;
       fitAddonInstance.current = null;
       socketRef.current = null;
     };
-  }, [isOpen, containerId, tail]);
+  }, [isOpen, containerId, tail, autoScroll]);
 
   const handleClear = () => {
     logsBufferRef.current = '';

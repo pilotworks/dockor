@@ -74,5 +74,11 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 		})
 	})
 
+	// Dedicated /ws route for WebSockets
+	r.Route("/ws", func(r chi.Router) {
+		r.Get("/containers/{id}/logs", h.ContainerLogs)
+		r.Get("/containers/{id}/exec", h.ContainerExec)
+	})
+
 	return r
 }

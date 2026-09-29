@@ -82,41 +82,88 @@ export function ContainerTerminalModal({
     const host = window.location.host;
     const wsUrl = `${proto}//${host}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
 
-    const ws = new WebSocket(wsUrl);
-    ws.binaryType = 'arraybuffer';
-    socketRef.current = ws;
+    let hasOpened = false;
+    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    ws.onopen = () => {
-      setStatus('connected');
-      term.focus();
-      // Send initial terminal resize geometry
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-      }
+    const setupWsHandlers = (targetWs: WebSocket) => {
+      targetWs.binaryType = 'arraybuffer';
+      socketRef.current = targetWs;
+
+      targetWs.onopen = () => {
+        hasOpened = true;
+        if (fallbackTimeout) {
+          clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        setStatus('connected');
+        term.focus();
+        if (targetWs.readyState === WebSocket.OPEN) {
+          targetWs.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        }
+      };
+
+      targetWs.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          term.write(event.data);
+        } else if (event.data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(event.data));
+        }
+      };
+
+      const triggerFallback = () => {
+        if (!hasOpened && window.location.port === '5173') {
+          hasOpened = true; // prevent infinite fallback loop
+          if (fallbackTimeout) {
+            clearTimeout(fallbackTimeout);
+            fallbackTimeout = null;
+          }
+          targetWs.close();
+          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
+          console.log('[Terminal WS] Falling back directly to backend on port 9000:', fallbackUrl);
+          const fallbackWs = new WebSocket(fallbackUrl);
+          setupWsHandlers(fallbackWs);
+          return true;
+        }
+        return false;
+      };
+
+      targetWs.onerror = (e) => {
+        console.warn('[Terminal WS Error]', e);
+        if (triggerFallback()) return;
+        setStatus('disconnected');
+        term.writeln('\r\n\x1b[31m[WebSocket Connection Error: Check if container is running and Docker is reachable]\x1b[0m');
+      };
+
+      targetWs.onclose = (e) => {
+        if (triggerFallback()) return;
+        setStatus('disconnected');
+        if (e.code !== 1000) {
+          term.writeln(`\r\n\x1b[33m[Session Terminated (code: ${e.code})]\x1b[0m`);
+        }
+      };
     };
 
-    ws.onmessage = (event) => {
-      if (typeof event.data === 'string') {
-        term.write(event.data);
-      } else if (event.data instanceof ArrayBuffer) {
-        term.write(new Uint8Array(event.data));
-      }
-    };
+    const initialWs = new WebSocket(wsUrl);
+    setupWsHandlers(initialWs);
 
-    ws.onerror = () => {
-      setStatus('disconnected');
-      term.writeln('\r\n\x1b[31m[WebSocket Connection Error]\x1b[0m');
-    };
-
-    ws.onclose = () => {
-      setStatus('disconnected');
-      term.writeln('\r\n\x1b[33m[Session Terminated]\x1b[0m');
-    };
+    // If still in CONNECTING after 2.5s on Vite dev port 5173, force fallback to backend port 9000
+    if (window.location.port === '5173') {
+      fallbackTimeout = setTimeout(() => {
+        if (!hasOpened && socketRef.current?.readyState === WebSocket.CONNECTING) {
+          console.log('[Terminal WS] Connection timed out on proxy, switching directly to port 9000...');
+          socketRef.current.close();
+          hasOpened = true;
+          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
+          const fallbackWs = new WebSocket(fallbackUrl);
+          setupWsHandlers(fallbackWs);
+        }
+      }, 2500);
+    }
 
     // Forward user keystrokes to container stdin
     const onDataDisposable = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(data);
       }
     });
 
@@ -124,8 +171,8 @@ export function ContainerTerminalModal({
     const handleResize = () => {
       if (!fitAddonInstance.current || !xtermInstance.current) return;
       fitAddonInstance.current.fit();
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(
           JSON.stringify({
             type: 'resize',
             cols: xtermInstance.current.cols,
@@ -142,9 +189,10 @@ export function ContainerTerminalModal({
 
     return () => {
       clearTimeout(timer);
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       window.removeEventListener('resize', handleResize);
       onDataDisposable.dispose();
-      ws.close();
+      socketRef.current?.close();
       term.dispose();
       xtermInstance.current = null;
       fitAddonInstance.current = null;

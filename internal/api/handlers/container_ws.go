@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -28,7 +29,7 @@ type wsWriter struct {
 func (w *wsWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	err := w.conn.WriteMessage(websocket.TextMessage, p)
+	err := w.conn.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return 0, err
 	}
@@ -43,6 +44,11 @@ type ExecResizeMessage struct {
 
 // ContainerLogs streams container logs via WebSocket or plain HTTP
 func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service unavailable")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	follow := r.URL.Query().Get("follow") != "false"
 	tail := r.URL.Query().Get("tail")
@@ -50,19 +56,7 @@ func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
 		tail = "200"
 	}
 
-	if h.dockerSvc == nil {
-		writeError(w, http.StatusServiceUnavailable, "Docker service unavailable")
-		return
-	}
-
-	logsReader, err := h.dockerSvc.GetContainerLogs(r.Context(), id, follow, tail)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to get container logs: "+err.Error())
-		return
-	}
-	defer logsReader.Close()
-
-	// Check if client requested WebSocket upgrade
+	// 1. If client requested WebSocket upgrade, upgrade IMMEDIATELY
 	if websocket.IsWebSocketUpgrade(r) {
 		conn, err := wsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -70,6 +64,26 @@ func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer conn.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Monitor client disconnect in background
+		go func() {
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					cancel()
+					return
+				}
+			}
+		}()
+
+		logsReader, err := h.dockerSvc.GetContainerLogs(ctx, id, follow, tail)
+		if err != nil {
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[31m[Dockor] Failed to get logs: "+err.Error()+"\x1b[0m\r\n"))
+			return
+		}
+		defer logsReader.Close()
 
 		writer := &wsWriter{conn: conn}
 
@@ -82,7 +96,14 @@ func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Plain HTTP response
+	// 2. Plain HTTP response fallback
+	logsReader, err := h.dockerSvc.GetContainerLogs(r.Context(), id, follow, tail)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to get container logs: "+err.Error())
+		return
+	}
+	defer logsReader.Close()
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, err = stdcopy.StdCopy(w, w, logsReader)
 	if err != nil {
@@ -92,17 +113,18 @@ func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
 
 // ContainerExec establishes an interactive pseudo-terminal via WebSocket
 func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service unavailable")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	cmdParam := r.URL.Query().Get("cmd")
 	if cmdParam == "" {
 		cmdParam = "/bin/sh"
 	}
 
-	if h.dockerSvc == nil {
-		writeError(w, http.StatusServiceUnavailable, "Docker service unavailable")
-		return
-	}
-
+	// Upgrade IMMEDIATELY so client receives 101 Switching Protocols
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[WS] Upgrade error for container exec: %v", err)
@@ -110,24 +132,27 @@ func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create exec instance inside container
-	execID, err := h.dockerSvc.ExecCreate(r.Context(), id, []string{cmdParam}, true)
+	execID, err := h.dockerSvc.ExecCreate(ctx, id, []string{cmdParam}, true)
 	if err != nil {
 		// Fallback to /bin/bash or sh if /bin/sh failed
 		if cmdParam == "/bin/sh" {
-			execID, err = h.dockerSvc.ExecCreate(r.Context(), id, []string{"/bin/bash"}, true)
+			execID, err = h.dockerSvc.ExecCreate(ctx, id, []string{"/bin/bash"}, true)
 			if err != nil {
-				execID, err = h.dockerSvc.ExecCreate(r.Context(), id, []string{"sh"}, true)
+				execID, err = h.dockerSvc.ExecCreate(ctx, id, []string{"sh"}, true)
 			}
 		}
 		if err != nil {
-			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[31m[Dockor] Failed to create exec shell: "+err.Error()+"\x1b[0m\r\n"))
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[31m[Dockor] Failed to create exec shell in container ("+id+"): "+err.Error()+"\x1b[0m\r\n"))
 			return
 		}
 	}
 
 	// Attach to exec session with TTY
-	hijacked, err := h.dockerSvc.ExecAttach(r.Context(), execID, true)
+	hijacked, err := h.dockerSvc.ExecAttach(ctx, execID, true)
 	if err != nil {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte("\r\n\x1b[31m[Dockor] Failed to attach to container exec: "+err.Error()+"\x1b[0m\r\n"))
 		return
@@ -163,7 +188,7 @@ func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
 			// Check if message is a resize JSON command
 			var resizeMsg ExecResizeMessage
 			if err := json.Unmarshal(msg, &resizeMsg); err == nil && resizeMsg.Type == "resize" && resizeMsg.Cols > 0 && resizeMsg.Rows > 0 {
-				_ = h.dockerSvc.ExecResize(r.Context(), execID, resizeMsg.Rows, resizeMsg.Cols)
+				_ = h.dockerSvc.ExecResize(ctx, execID, resizeMsg.Rows, resizeMsg.Cols)
 				continue
 			}
 		}
