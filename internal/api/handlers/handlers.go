@@ -485,6 +485,20 @@ func (h *APIHandler) ListContainers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, containers)
 }
 
+func (h *APIHandler) GetContainer(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	inspectRes, err := h.dockerSvc.InspectContainer(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "Container not found: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, inspectRes.Container)
+}
+
 func (h *APIHandler) StartContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.dockerSvc.StartContainer(r.Context(), id); err != nil {

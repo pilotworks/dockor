@@ -48,6 +48,7 @@ export const api = {
 
   // Containers
   getContainers: () => fetch(`${API_BASE}/containers`).then(handleResponse<Container[]>),
+  getContainer: (id: string) => fetch(`${API_BASE}/containers/${id}`).then(handleResponse<import('../types').ContainerDetail>),
   startContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/start`, { method: 'POST' }),
   stopContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/stop`, { method: 'POST' }),
   restartContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/restart`, { method: 'POST' }),

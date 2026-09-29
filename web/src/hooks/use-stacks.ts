@@ -89,3 +89,22 @@ export function useDeleteStack() {
     },
   });
 }
+
+export function useStack(id?: string) {
+  return useQuery({
+    queryKey: ['stack', id],
+    queryFn: () => (id ? api.getStack(id) : null),
+    enabled: Boolean(id),
+    refetchInterval: 5000,
+  });
+}
+
+export function useStackLogs(id?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['stack-logs', id],
+    queryFn: () => (id ? api.getStackLogs(id) : null),
+    enabled: Boolean(id) && enabled,
+    refetchInterval: 6000,
+  });
+}
+

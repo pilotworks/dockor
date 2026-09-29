@@ -41,6 +41,9 @@ export function Topbar() {
   };
 
   const path = location.pathname;
+  const isStackDetail = /^\/stacks\/[^/]+$/.test(path);
+  const isContainerDetail = /^\/containers\/[^/]+$/.test(path);
+
   const current = path.startsWith('/stacks')
     ? titles.stacks
     : path.startsWith('/containers')
@@ -52,10 +55,39 @@ export function Topbar() {
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-[#1F1F24] bg-white/90 dark:bg-[#09090B]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20 select-none transition-colors">
       {/* Breadcrumb & Section Name */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-400">Dockor</span>
-        <span className="text-zinc-300 dark:text-zinc-600">/</span>
-        <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{current.title}</span>
+      <div className="flex items-center gap-2">
+        <span
+          className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300"
+          onClick={() => navigate('/templates')}
+        >
+          Dockor
+        </span>
+        <span className="text-zinc-300 dark:text-zinc-700">/</span>
+        {isStackDetail ? (
+          <>
+            <span
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={() => navigate('/stacks')}
+            >
+              Compose Stacks
+            </span>
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Stack Detail</span>
+          </>
+        ) : isContainerDetail ? (
+          <>
+            <span
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={() => navigate('/containers')}
+            >
+              Containers
+            </span>
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Container Detail</span>
+          </>
+        ) : (
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{current.title}</span>
+        )}
       </div>
 
       {/* Global Actions */}

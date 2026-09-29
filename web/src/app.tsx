@@ -5,6 +5,8 @@ import { Shell } from './components/layout/shell';
 import { TemplatesView } from './components/views/templates-view';
 import { StacksView } from './components/views/stacks-view';
 import { ContainersView } from './components/views/containers-view';
+import { ContainerDetailView } from './components/views/container-detail-view';
+import { StackDetailView } from './components/views/stack-detail-view';
 import { NodesView } from './components/views/nodes-view';
 import { Toaster } from './components/ui/toaster';
 
@@ -17,7 +19,9 @@ export function App() {
             <Route path="/" element={<Navigate to="/templates" replace />} />
             <Route path="/templates" element={<TemplatesView />} />
             <Route path="/stacks" element={<StacksView />} />
+            <Route path="/stacks/:id" element={<StackDetailView />} />
             <Route path="/containers" element={<ContainersView />} />
+            <Route path="/containers/:id" element={<ContainerDetailView />} />
             <Route path="/nodes" element={<NodesView />} />
             <Route path="*" element={<Navigate to="/templates" replace />} />
           </Route>

@@ -41,9 +41,11 @@ export interface Stack {
   status: 'deploying' | 'running' | 'stopped' | 'error' | 'unknown';
   template_id?: string;
   compose_yaml: string;
+  env_vars?: Record<string, string>;
   created_at: string;
   updated_at: string;
 }
+
 
 export interface Container {
   id: string;
@@ -124,4 +126,88 @@ export interface PruneResult {
   networks_deleted: number;
   build_cache_deleted: number;
   space_reclaimed: number;
+}
+
+export interface ContainerMount {
+  type: string;
+  name?: string;
+  source: string;
+  destination: string;
+  driver?: string;
+  mode: string;
+  rw: boolean;
+  propagation?: string;
+}
+
+export interface ContainerPortBinding {
+  host_ip?: string;
+  host_port?: string;
+}
+
+export interface ContainerNetworkInfo {
+  network_id?: string;
+  endpoint_id?: string;
+  gateway?: string;
+  ip_address: string;
+  ip_prefix_len?: number;
+  ipv6_gateway?: string;
+  global_ipv6_address?: string;
+  mac_address: string;
+}
+
+export interface ContainerDetailState {
+  status: string;
+  running: boolean;
+  paused: boolean;
+  restarting: boolean;
+  oom_killed: boolean;
+  dead: boolean;
+  pid: number;
+  exit_code: number;
+  error: string;
+  started_at: string;
+  finished_at: string;
+}
+
+export interface ContainerDetail {
+  id: string;
+  created: string;
+  path: string;
+  args: string[];
+  state: ContainerDetailState;
+  image: string;
+  name: string;
+  restart_count: number;
+  driver: string;
+  platform: string;
+  mounts?: ContainerMount[];
+  config: {
+    hostname?: string;
+    domainname?: string;
+    user?: string;
+    env?: string[];
+    cmd?: string[];
+    image?: string;
+    working_dir?: string;
+    entrypoint?: string[];
+    labels?: Record<string, string>;
+  };
+  network_settings: {
+    ip_address?: string;
+    gateway?: string;
+    mac_address?: string;
+    ports?: Record<string, ContainerPortBinding[] | null>;
+    networks?: Record<string, ContainerNetworkInfo>;
+  };
+  host_config?: {
+    binds?: string[];
+    network_mode?: string;
+    restart_policy?: {
+      name?: string;
+      maximum_retry_count?: number;
+    };
+    memory?: number;
+    nano_cpus?: number;
+    cpu_shares?: number;
+  };
 }

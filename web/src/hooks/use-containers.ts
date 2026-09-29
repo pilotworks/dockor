@@ -9,6 +9,15 @@ export function useContainers() {
   });
 }
 
+export function useContainer(id?: string) {
+  return useQuery({
+    queryKey: ['container', id],
+    queryFn: () => (id ? api.getContainer(id) : null),
+    enabled: Boolean(id),
+    refetchInterval: 5000,
+  });
+}
+
 export function useContainerAction() {
   const queryClient = useQueryClient();
 

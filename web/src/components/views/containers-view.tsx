@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useContainers, useContainerAction } from '../../hooks/use-containers';
 import {
   IconBox,
@@ -11,6 +12,7 @@ import {
   IconActivity,
   IconTrash,
   IconCircleFilled,
+  IconMaximize,
 } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -29,6 +31,7 @@ import { ContainerStatsModal } from '../containers/container-stats-modal';
 import { SystemPruneModal } from '../system/system-prune-modal';
 
 export function ContainersView() {
+  const navigate = useNavigate();
   const { data: containers = [], isLoading } = useContainers();
   const actionMutation = useContainerAction();
   const [filterState, setFilterState] = useState<'all' | 'running' | 'stopped'>('all');
@@ -198,8 +201,12 @@ export function ContainersView() {
 
                       {/* Name & Short ID */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <div
+                          className="flex flex-col cursor-pointer group/name inline-flex"
+                          onClick={() => navigate(`/containers/${c.id}`)}
+                          title="Open Container Details"
+                        >
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover/name:text-blue-600 dark:group-hover/name:text-blue-400 transition-colors">
                             {containerName}
                           </span>
                           <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{shortId}</span>
@@ -317,6 +324,11 @@ export function ContainersView() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/containers/${c.id}`)}>
+                                <IconMaximize className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Inspect & Details</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 disabled={!isRunning}
                                 onClick={() => setTerminalContainer({ id: c.id, name: containerName })}

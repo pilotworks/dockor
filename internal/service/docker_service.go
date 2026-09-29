@@ -139,6 +139,13 @@ func (ds *DockerService) RestartContainer(ctx context.Context, id string) error 
 	return err
 }
 
+func (ds *DockerService) InspectContainer(ctx context.Context, id string) (client.ContainerInspectResult, error) {
+	if ds.cli == nil {
+		return client.ContainerInspectResult{}, fmt.Errorf("docker client not initialized")
+	}
+	return ds.cli.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
+}
+
 func (ds *DockerService) GetContainerLogs(ctx context.Context, id string, follow bool, tail string) (io.ReadCloser, error) {
 	if ds.cli == nil {
 		return nil, fmt.Errorf("docker client not initialized")

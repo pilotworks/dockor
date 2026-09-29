@@ -229,12 +229,22 @@ export function StacksView() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-[#09090B] border border-blue-200 dark:border-[#272730] flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shadow-inner">
+                    <div
+                      onClick={() => navigate(`/stacks/${stack.id}`)}
+                      className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-[#09090B] border border-blue-200 dark:border-[#272730] flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shadow-inner cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                      title="View Stack Details"
+                    >
                       <IconStack2 className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{stack.name}</h4>
+                        <h4
+                          onClick={() => navigate(`/stacks/${stack.id}`)}
+                          className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+                          title="Open Stack Details"
+                        >
+                          {stack.name}
+                        </h4>
                         <Badge
                           variant={
                             stack.status === 'running'
@@ -388,7 +398,9 @@ export function StacksView() {
                         return (
                           <div
                             key={sc.id}
-                            className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#202026] rounded-lg p-2 flex items-center justify-between"
+                            onClick={() => navigate(`/containers/${sc.id}`)}
+                            className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#202026] hover:border-blue-400 dark:hover:border-blue-600 rounded-lg p-2 flex items-center justify-between cursor-pointer transition-colors"
+                            title="Open container details"
                           >
                             <div className="flex items-center gap-2 truncate">
                               <IconCircleFilled
@@ -396,7 +408,7 @@ export function StacksView() {
                                   isRunning ? 'text-emerald-500 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-600'
                                 }`}
                               />
-                              <span className="font-mono text-[11px] text-zinc-800 dark:text-zinc-300 truncate">
+                              <span className="font-mono text-[11px] text-zinc-800 dark:text-zinc-300 truncate hover:text-blue-500">
                                 {scName}
                               </span>
                             </div>
