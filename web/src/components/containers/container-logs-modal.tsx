@@ -6,6 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   IconFileText,
   IconRefresh,
   IconClearAll,
@@ -217,17 +224,28 @@ export function ContainerLogsModal({
 
           <div className="flex items-center gap-2 mr-6">
             {/* Tail Selector */}
-            <select
-              value={tail}
-              onChange={(e) => setTail(e.target.value)}
-              className="h-7 px-2 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-blue-500"
-            >
-              <option value="50">Last 50 lines</option>
-              <option value="100">Last 100 lines</option>
-              <option value="200">Last 200 lines</option>
-              <option value="500">Last 500 lines</option>
-              <option value="1000">Last 1000 lines</option>
-            </select>
+            <Select value={tail} onValueChange={(val) => setTail(val)}>
+              <SelectTrigger className="h-7 w-[130px] px-2.5 bg-zinc-900 border-zinc-800 text-[11px] font-mono text-zinc-300 focus:ring-0 focus:border-blue-500 shadow-none">
+                <SelectValue placeholder="Lines" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 z-[100]">
+                <SelectItem value="50" className="text-[11px] font-mono">
+                  Last 50 lines
+                </SelectItem>
+                <SelectItem value="100" className="text-[11px] font-mono">
+                  Last 100 lines
+                </SelectItem>
+                <SelectItem value="200" className="text-[11px] font-mono">
+                  Last 200 lines
+                </SelectItem>
+                <SelectItem value="500" className="text-[11px] font-mono">
+                  Last 500 lines
+                </SelectItem>
+                <SelectItem value="1000" className="text-[11px] font-mono">
+                  Last 1000 lines
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Auto Scroll Toggle */}
             <Button

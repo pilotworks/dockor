@@ -6,6 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   IconTerminal2,
   IconRefresh,
   IconClearAll,
@@ -227,15 +234,22 @@ export function ContainerTerminalModal({
 
           <div className="flex items-center gap-2 mr-6">
             {/* Shell Selector */}
-            <select
-              value={shell}
-              onChange={(e) => setShell(e.target.value)}
-              className="h-7 px-2 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-blue-500"
-            >
-              <option value="/bin/sh">/bin/sh</option>
-              <option value="/bin/bash">/bin/bash</option>
-              <option value="sh">sh</option>
-            </select>
+            <Select value={shell} onValueChange={(val) => setShell(val)}>
+              <SelectTrigger className="h-7 w-[110px] px-2.5 bg-zinc-900 border-zinc-800 text-[11px] font-mono text-zinc-300 focus:ring-0 focus:border-blue-500 shadow-none">
+                <SelectValue placeholder="Shell" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 z-[100]">
+                <SelectItem value="/bin/sh" className="text-[11px] font-mono">
+                  /bin/sh
+                </SelectItem>
+                <SelectItem value="/bin/bash" className="text-[11px] font-mono">
+                  /bin/bash
+                </SelectItem>
+                <SelectItem value="sh" className="text-[11px] font-mono">
+                  sh
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
             <Button
               variant="surface"
