@@ -70,6 +70,16 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Get("/{id}/stats", h.ContainerStats)
 		})
 
+		// Networks
+		r.Route("/networks", func(r chi.Router) {
+			r.Get("/", h.ListNetworks)
+			r.Post("/", h.CreateNetwork)
+			r.Get("/{id}", h.GetNetwork)
+			r.Delete("/{id}", h.DeleteNetwork)
+			r.Post("/{id}/connect", h.ConnectNetwork)
+			r.Post("/{id}/disconnect", h.DisconnectNetwork)
+		})
+
 		// Nodes
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", h.ListNodes)

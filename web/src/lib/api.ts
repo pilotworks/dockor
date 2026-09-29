@@ -56,6 +56,30 @@ export const api = {
   // Nodes
   getNodes: () => fetch(`${API_BASE}/nodes`).then(handleResponse<Node[]>),
 
+  // Networks
+  getNetworks: () => fetch(`${API_BASE}/networks`).then(handleResponse<import('../types').DockerNetwork[]>),
+  getNetwork: (id: string) => fetch(`${API_BASE}/networks/${id}`).then(handleResponse<import('../types').DockerNetwork>),
+  createNetwork: (data: import('../types').CreateNetworkPayload) =>
+    fetch(`${API_BASE}/networks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(handleResponse<import('../types').DockerNetwork>),
+  deleteNetwork: (id: string) =>
+    fetch(`${API_BASE}/networks/${id}`, { method: 'DELETE' }).then(handleResponse<{ status: string }>),
+  connectNetwork: (networkId: string, containerId: string) =>
+    fetch(`${API_BASE}/networks/${networkId}/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ container_id: containerId }),
+    }).then(handleResponse<{ status: string }>),
+  disconnectNetwork: (networkId: string, containerId: string, force = false) =>
+    fetch(`${API_BASE}/networks/${networkId}/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ container_id: containerId, force }),
+    }).then(handleResponse<{ status: string }>),
+
   // System
   getSystemDiskUsage: () =>
     fetch(`${API_BASE}/system/df`).then(handleResponse<import('../types').SystemDiskUsage>),

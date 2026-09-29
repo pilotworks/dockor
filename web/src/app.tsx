@@ -7,6 +7,8 @@ import { StacksView } from './components/views/stacks-view';
 import { ContainersView } from './components/views/containers-view';
 import { ContainerDetailView } from './components/views/container-detail-view';
 import { StackDetailView } from './components/views/stack-detail-view';
+import { NetworksView } from './components/views/networks-view';
+import { NetworkDetailView } from './components/views/network-detail-view';
 import { NodesView } from './components/views/nodes-view';
 import { Toaster } from './components/ui/toaster';
 
@@ -22,6 +24,8 @@ export function App() {
             <Route path="/stacks/:id" element={<StackDetailView />} />
             <Route path="/containers" element={<ContainersView />} />
             <Route path="/containers/:id" element={<ContainerDetailView />} />
+            <Route path="/networks" element={<NetworksView />} />
+            <Route path="/networks/:id" element={<NetworkDetailView />} />
             <Route path="/nodes" element={<NodesView />} />
             <Route path="*" element={<Navigate to="/templates" replace />} />
           </Route>

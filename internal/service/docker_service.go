@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/pilotworks/dockor/internal/models"
 )
@@ -348,3 +350,104 @@ func (ds *DockerService) Prune(ctx context.Context, opts PruneOptions) (*PruneRe
 
 	return result, nil
 }
+
+type CreateNetworkRequest struct {
+	Name       string            `json:"name"`
+	Driver     string            `json:"driver"`
+	Subnet     string            `json:"subnet,omitempty"`
+	Gateway    string            `json:"gateway,omitempty"`
+	IPRange    string            `json:"ip_range,omitempty"`
+	Internal   bool              `json:"internal"`
+	Attachable bool              `json:"attachable"`
+	Labels     map[string]string `json:"labels,omitempty"`
+	Options    map[string]string `json:"options,omitempty"`
+}
+
+func (ds *DockerService) ListNetworks(ctx context.Context) ([]network.Summary, error) {
+	res, err := ds.cli.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list networks: %w", err)
+	}
+	return res.Items, nil
+}
+
+func (ds *DockerService) InspectNetwork(ctx context.Context, id string) (*network.Inspect, error) {
+	res, err := ds.cli.NetworkInspect(ctx, id, client.NetworkInspectOptions{Verbose: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect network %s: %w", id, err)
+	}
+	return &res.Network, nil
+}
+
+func (ds *DockerService) CreateNetwork(ctx context.Context, req CreateNetworkRequest) (*network.Inspect, error) {
+	opts := client.NetworkCreateOptions{
+		Driver:     req.Driver,
+		Internal:   req.Internal,
+		Attachable: req.Attachable,
+		Labels:     req.Labels,
+		Options:    req.Options,
+	}
+
+	if req.Driver == "" {
+		opts.Driver = "bridge"
+	}
+
+	if req.Subnet != "" || req.Gateway != "" {
+		ipamConfig := network.IPAMConfig{}
+		if req.Subnet != "" {
+			if prefix, err := netip.ParsePrefix(req.Subnet); err == nil {
+				ipamConfig.Subnet = prefix
+			}
+		}
+		if req.Gateway != "" {
+			if addr, err := netip.ParseAddr(req.Gateway); err == nil {
+				ipamConfig.Gateway = addr
+			}
+		}
+		if req.IPRange != "" {
+			if prefix, err := netip.ParsePrefix(req.IPRange); err == nil {
+				ipamConfig.IPRange = prefix
+			}
+		}
+		opts.IPAM = &network.IPAM{
+			Config: []network.IPAMConfig{ipamConfig},
+		}
+	}
+
+	res, err := ds.cli.NetworkCreate(ctx, req.Name, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create network: %w", err)
+	}
+
+	return ds.InspectNetwork(ctx, res.ID)
+}
+
+func (ds *DockerService) RemoveNetwork(ctx context.Context, id string) error {
+	_, err := ds.cli.NetworkRemove(ctx, id, client.NetworkRemoveOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to remove network %s: %w", id, err)
+	}
+	return nil
+}
+
+func (ds *DockerService) ConnectNetwork(ctx context.Context, networkID string, containerID string) error {
+	_, err := ds.cli.NetworkConnect(ctx, networkID, client.NetworkConnectOptions{
+		Container: containerID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect container %s to network %s: %w", containerID, networkID, err)
+	}
+	return nil
+}
+
+func (ds *DockerService) DisconnectNetwork(ctx context.Context, networkID string, containerID string, force bool) error {
+	_, err := ds.cli.NetworkDisconnect(ctx, networkID, client.NetworkDisconnectOptions{
+		Container: containerID,
+		Force:     force,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to disconnect container %s from network %s: %w", containerID, networkID, err)
+	}
+	return nil
+}
+

@@ -2,6 +2,7 @@ import {
   IconTemplate,
   IconStack2,
   IconBox,
+  IconNetwork,
   IconServer,
   IconCpu,
   IconExternalLink,
@@ -16,6 +17,7 @@ import { useHealth, useNodes } from '../../hooks/use-nodes';
 import { useContainers } from '../../hooks/use-containers';
 import { useStacks } from '../../hooks/use-stacks';
 import { useTemplates } from '../../hooks/use-templates';
+import { useNetworks } from '../../hooks/use-networks';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 
@@ -27,6 +29,7 @@ export function Sidebar() {
   const { data: containers = [] } = useContainers();
   const { data: stacks = [] } = useStacks();
   const { data: templates = [] } = useTemplates();
+  const { data: networks = [] } = useNetworks();
 
   const runningContainers = containers.filter((c) => c.state === 'running').length;
   const isDockerConnected = health?.docker === 'connected';
@@ -50,6 +53,12 @@ export function Sidebar() {
       icon: IconBox,
       badge: runningContainers > 0 ? `${runningContainers}` : '0',
       badgeVariant: runningContainers > 0 ? ('success' as const) : ('neutral' as const),
+    },
+    {
+      path: '/networks',
+      label: 'Networks',
+      icon: IconNetwork,
+      badge: networks.length > 0 ? `${networks.length}` : undefined,
     },
     {
       path: '/nodes',

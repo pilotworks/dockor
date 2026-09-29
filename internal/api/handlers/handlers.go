@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/moby/moby/api/types/network"
 	"github.com/pilotworks/dockor/internal/models"
 	"github.com/pilotworks/dockor/internal/repository"
 	"github.com/pilotworks/dockor/internal/service"
@@ -578,3 +579,111 @@ func (h *APIHandler) PruneSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, result)
 }
+
+// Network Handlers
+func (h *APIHandler) ListNetworks(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	networks, err := h.dockerSvc.ListNetworks(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if networks == nil {
+		networks = []network.Summary{}
+	}
+	writeJSON(w, http.StatusOK, networks)
+}
+
+func (h *APIHandler) GetNetwork(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	net, err := h.dockerSvc.InspectNetwork(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, net)
+}
+
+func (h *APIHandler) CreateNetwork(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	var req service.CreateNetworkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "Network name is required")
+		return
+	}
+	net, err := h.dockerSvc.CreateNetwork(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, net)
+}
+
+func (h *APIHandler) DeleteNetwork(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	if err := h.dockerSvc.RemoveNetwork(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+type ConnectNetworkRequest struct {
+	ContainerID string `json:"container_id"`
+	Force       bool   `json:"force,omitempty"`
+}
+
+func (h *APIHandler) ConnectNetwork(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	var req ConnectNetworkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ContainerID == "" {
+		writeError(w, http.StatusBadRequest, "Container ID is required")
+		return
+	}
+	if err := h.dockerSvc.ConnectNetwork(r.Context(), id, req.ContainerID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "connected"})
+}
+
+func (h *APIHandler) DisconnectNetwork(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	var req ConnectNetworkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ContainerID == "" {
+		writeError(w, http.StatusBadRequest, "Container ID is required")
+		return
+	}
+	if err := h.dockerSvc.DisconnectNetwork(r.Context(), id, req.ContainerID, req.Force); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "disconnected"})
+}
+

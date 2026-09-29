@@ -211,3 +211,55 @@ export interface ContainerDetail {
     cpu_shares?: number;
   };
 }
+
+export interface NetworkIPAMConfig {
+  Subnet?: string;
+  Gateway?: string;
+  IPRange?: string;
+  AuxiliaryAddresses?: Record<string, string>;
+}
+
+export interface NetworkIPAM {
+  Driver?: string;
+  Options?: Record<string, string>;
+  Config?: NetworkIPAMConfig[];
+}
+
+export interface NetworkContainerEndpoint {
+  Name: string;
+  EndpointID: string;
+  MacAddress: string;
+  IPv4Address: string;
+  IPv6Address: string;
+}
+
+export interface DockerNetwork {
+  Name: string;
+  Id: string;
+  Created: string;
+  Scope: string;
+  Driver: string;
+  EnableIPv4?: boolean;
+  EnableIPv6?: boolean;
+  IPAM?: NetworkIPAM;
+  Internal: boolean;
+  Attachable: boolean;
+  Ingress: boolean;
+  ConfigFrom?: { Network?: string };
+  ConfigOnly?: boolean;
+  Containers?: Record<string, NetworkContainerEndpoint>;
+  Options?: Record<string, string>;
+  Labels?: Record<string, string>;
+}
+
+export interface CreateNetworkPayload {
+  name: string;
+  driver: string;
+  subnet?: string;
+  gateway?: string;
+  ip_range?: string;
+  internal?: boolean;
+  attachable?: boolean;
+  labels?: Record<string, string>;
+}
+

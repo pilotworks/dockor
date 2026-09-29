@@ -35,6 +35,10 @@ export function Topbar() {
       title: 'Container Engine',
       subtitle: 'Direct inspection of Docker containers, ports, and lifecycle states',
     },
+    networks: {
+      title: 'Virtual Networks',
+      subtitle: 'Software-defined networking namespaces, subnets, and container routing',
+    },
     nodes: {
       title: 'Cluster Topology',
       subtitle: 'Connected Docker engines and remote agent endpoints',
@@ -44,11 +48,14 @@ export function Topbar() {
   const path = location.pathname;
   const isStackDetail = /^\/stacks\/[^/]+$/.test(path);
   const isContainerDetail = /^\/containers\/[^/]+$/.test(path);
+  const isNetworkDetail = /^\/networks\/[^/]+$/.test(path);
 
   const current = path.startsWith('/stacks')
     ? titles.stacks
     : path.startsWith('/containers')
     ? titles.containers
+    : path.startsWith('/networks')
+    ? titles.networks
     : path.startsWith('/nodes')
     ? titles.nodes
     : titles.templates;
@@ -85,6 +92,17 @@ export function Topbar() {
             </span>
             <span className="text-zinc-300 dark:text-zinc-700">/</span>
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Container Detail</span>
+          </>
+        ) : isNetworkDetail ? (
+          <>
+            <span
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={() => navigate('/networks')}
+            >
+              Networks
+            </span>
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
+            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Network Detail</span>
           </>
         ) : (
           <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{current.title}</span>
