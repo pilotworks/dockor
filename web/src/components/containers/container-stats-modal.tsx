@@ -188,9 +188,6 @@ export function ContainerStatsModal({
     setReconnectKey((prev) => prev + 1);
   };
 
-  const memoryLimitMB = currentStats?.memory_limit
-    ? Math.round((currentStats.memory_limit / (1024 * 1024)) * 10) / 10
-    : 1000;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -286,7 +283,15 @@ export function ContainerStatsModal({
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
                     <XAxis dataKey="time" hide />
                     <YAxis
-                      domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.1))]}
+                      domain={[
+                        0,
+                        (dataMax: number) => {
+                          if (!dataMax || dataMax <= 0) return 5;
+                          if (dataMax < 5) return 5;
+                          if (dataMax < 20) return Math.ceil(dataMax * 1.3);
+                          return Math.ceil(dataMax * 1.15);
+                        },
+                      ]}
                       unit="%"
                       tick={{ fontSize: 10, fill: '#71717a' }}
                       axisLine={false}
@@ -369,7 +374,13 @@ export function ContainerStatsModal({
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
                     <XAxis dataKey="time" hide />
                     <YAxis
-                      domain={[0, (dataMax: number) => Math.max(memoryLimitMB * 0.2, Math.ceil(dataMax * 1.2))]}
+                      domain={[
+                        0,
+                        (dataMax: number) => {
+                          if (!dataMax || dataMax <= 0) return 10;
+                          return Math.max(10, Math.ceil(dataMax * 1.2));
+                        },
+                      ]}
                       unit="MB"
                       tick={{ fontSize: 10, fill: '#71717a' }}
                       axisLine={false}
@@ -460,7 +471,19 @@ export function ContainerStatsModal({
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
                     <XAxis dataKey="time" hide />
-                    <YAxis unit="K" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      domain={[
+                        0,
+                        (dataMax: number) => {
+                          if (!dataMax || dataMax <= 0) return 5;
+                          return Math.max(5, Math.ceil(dataMax * 1.2));
+                        },
+                      ]}
+                      unit="K"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <Tooltip content={<CustomChartTooltip unit="KB/s" />} />
                     <Area
                       type="monotone"
@@ -536,7 +559,19 @@ export function ContainerStatsModal({
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
                     <XAxis dataKey="time" hide />
-                    <YAxis unit="K" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      domain={[
+                        0,
+                        (dataMax: number) => {
+                          if (!dataMax || dataMax <= 0) return 5;
+                          return Math.max(5, Math.ceil(dataMax * 1.2));
+                        },
+                      ]}
+                      unit="K"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <Tooltip content={<CustomChartTooltip unit="KB/s" />} />
                     <Area
                       type="monotone"
