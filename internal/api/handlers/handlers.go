@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -15,13 +16,15 @@ type APIHandler struct {
 	repo         *repository.Repository
 	dockerSvc    *service.DockerService
 	templateEng  *service.TemplateEngine
+	composeSvc   *service.ComposeService
 }
 
-func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService, templateEng *service.TemplateEngine) *APIHandler {
+func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService, templateEng *service.TemplateEngine, composeSvc *service.ComposeService) *APIHandler {
 	return &APIHandler{
 		repo:        repo,
 		dockerSvc:   dockerSvc,
 		templateEng: templateEng,
+		composeSvc:  composeSvc,
 	}
 }
 
@@ -187,7 +190,7 @@ func (h *APIHandler) DeployStack(w http.ResponseWriter, r *http.Request) {
 	for k, v := range req.Variables {
 		envMap[k] = ""
 		if v != nil {
-			envMap[k] = v.(string)
+			envMap[k] = fmt.Sprintf("%v", v)
 		}
 	}
 
@@ -198,7 +201,7 @@ func (h *APIHandler) DeployStack(w http.ResponseWriter, r *http.Request) {
 		TemplateID:  req.TemplateID,
 		ComposeYAML: composeContent,
 		EnvVars:     envMap,
-		Status:      models.StackStatusRunning,
+		Status:      models.StackStatusDeploying,
 	}
 
 	if err := h.repo.CreateStack(r.Context(), stack); err != nil {
@@ -206,11 +209,205 @@ func (h *APIHandler) DeployStack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Trigger real compose up via ComposeService
+	if h.composeSvc != nil {
+		out, err := h.composeSvc.Up(r.Context(), stack)
+		if err != nil {
+			_ = h.repo.UpdateStackStatus(r.Context(), stack.ID, models.StackStatusError)
+			stack.Status = models.StackStatusError
+			writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+				"error":  "Compose deployment failed: " + err.Error(),
+				"output": out,
+				"stack":  stack,
+			})
+			return
+		}
+		_ = h.repo.UpdateStackStatus(r.Context(), stack.ID, models.StackStatusRunning)
+		stack.Status = models.StackStatusRunning
+	} else {
+		stack.Status = models.StackStatusRunning
+		_ = h.repo.UpdateStackStatus(r.Context(), stack.ID, models.StackStatusRunning)
+	}
+
 	writeJSON(w, http.StatusCreated, stack)
+}
+
+func (h *APIHandler) GetStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, stack)
+}
+
+func (h *APIHandler) StartStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	var output string
+	if h.composeSvc != nil {
+		out, err := h.composeSvc.Start(r.Context(), stack)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Failed to start stack: "+err.Error())
+			return
+		}
+		output = out
+	}
+
+	_ = h.repo.UpdateStackStatus(r.Context(), id, models.StackStatusRunning)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Stack started successfully",
+		"output":  output,
+	})
+}
+
+func (h *APIHandler) StopStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	var output string
+	if h.composeSvc != nil {
+		out, err := h.composeSvc.Stop(r.Context(), stack)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Failed to stop stack: "+err.Error())
+			return
+		}
+		output = out
+	}
+
+	_ = h.repo.UpdateStackStatus(r.Context(), id, models.StackStatusStopped)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Stack stopped successfully",
+		"output":  output,
+	})
+}
+
+func (h *APIHandler) RestartStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	var output string
+	if h.composeSvc != nil {
+		out, err := h.composeSvc.Restart(r.Context(), stack)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Failed to restart stack: "+err.Error())
+			return
+		}
+		output = out
+	}
+
+	_ = h.repo.UpdateStackStatus(r.Context(), id, models.StackStatusRunning)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Stack restarted successfully",
+		"output":  output,
+	})
+}
+
+func (h *APIHandler) PullStack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	var output string
+	if h.composeSvc != nil {
+		out, err := h.composeSvc.Pull(r.Context(), stack)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Failed to pull stack images: "+err.Error())
+			return
+		}
+		output = out
+		upOut, upErr := h.composeSvc.Up(r.Context(), stack)
+		if upErr != nil {
+			writeError(w, http.StatusInternalServerError, "Failed to apply pulled stack: "+upErr.Error())
+			return
+		}
+		output += "\n" + upOut
+	}
+
+	_ = h.repo.UpdateStackStatus(r.Context(), id, models.StackStatusRunning)
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Stack updated successfully",
+		"output":  output,
+	})
+}
+
+func (h *APIHandler) GetStackLogs(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stack == nil {
+		writeError(w, http.StatusNotFound, "Stack not found")
+		return
+	}
+
+	if h.composeSvc == nil {
+		writeJSON(w, http.StatusOK, map[string]string{"logs": "Compose service unavailable"})
+		return
+	}
+
+	logs, err := h.composeSvc.Logs(r.Context(), stack, 150)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to read stack logs: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"logs": logs})
 }
 
 func (h *APIHandler) DeleteStack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	stack, err := h.repo.GetStack(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if stack != nil && h.composeSvc != nil {
+		removeVolumes := r.URL.Query().Get("delete_volumes") == "true"
+		_, _ = h.composeSvc.Down(r.Context(), stack, removeVolumes)
+		_ = h.composeSvc.RemoveStackDir(stack.ID)
+	}
+
 	if err := h.repo.DeleteStack(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

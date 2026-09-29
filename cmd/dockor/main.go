@@ -119,8 +119,11 @@ func main() {
 		log.Printf("Loaded %d template(s) from %s", len(templates), cfg.TemplatesDir)
 	}
 
-	// 4. Initialize HTTP API Handler and Router
-	handler := handlers.NewAPIHandler(repo, dockerSvc, templateEng)
+	// 4. Initialize Compose Service
+	composeSvc := service.NewComposeService(cfg.DockerHost, cfg.DataDir)
+
+	// 5. Initialize HTTP API Handler and Router
+	handler := handlers.NewAPIHandler(repo, dockerSvc, templateEng, composeSvc)
 	router := api.NewRouter(handler)
 
 	server := &http.Server{

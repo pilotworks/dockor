@@ -21,13 +21,59 @@ export function useDeployStack() {
   });
 }
 
+export function useStartStack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.startStack(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    },
+  });
+}
+
+export function useStopStack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.stopStack(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    },
+  });
+}
+
+export function useRestartStack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.restartStack(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    },
+  });
+}
+
+export function usePullStack() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.pullStack(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    },
+  });
+}
+
 export function useDeleteStack() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.deleteStack(id),
+    mutationFn: ({ id, deleteVolumes }: { id: string; deleteVolumes?: boolean }) =>
+      api.deleteStack(id, deleteVolumes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stacks'] });
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
     },
   });
 }

@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStacks, useDeleteStack } from '../../hooks/use-stacks';
+import {
+  useStacks,
+  useDeleteStack,
+  useStartStack,
+  useStopStack,
+  useRestartStack,
+  usePullStack,
+} from '../../hooks/use-stacks';
 import { useContainers } from '../../hooks/use-containers';
+import { api } from '../../lib/api';
 import {
   IconStack2,
   IconTrash,
@@ -9,6 +17,12 @@ import {
   IconCode,
   IconPlus,
   IconWebhook,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconRotateClockwise,
+  IconCloudDownload,
+  IconFileText,
+  IconLoader2,
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -20,14 +34,78 @@ export function StacksView() {
   const { data: stacks = [], isLoading } = useStacks();
   const { data: containers = [] } = useContainers();
   const deleteMutation = useDeleteStack();
+  const startMutation = useStartStack();
+  const stopMutation = useStopStack();
+  const restartMutation = useRestartStack();
+  const pullMutation = usePullStack();
   const navigate = useNavigate();
 
   const [inspectStack, setInspectStack] = useState<{ name: string; yaml: string } | null>(null);
+  const [logsModal, setLogsModal] = useState<{ id: string; name: string; logs: string; loading: boolean } | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const handleStart = async (id: string, name: string) => {
+    setActionLoadingId(id);
+    try {
+      await startMutation.mutateAsync(id);
+      toast.success(`Stack "${name}" started`);
+    } catch (err: any) {
+      toast.error('Failed to start stack', { description: err.message });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleStop = async (id: string, name: string) => {
+    setActionLoadingId(id);
+    try {
+      await stopMutation.mutateAsync(id);
+      toast.success(`Stack "${name}" stopped`);
+    } catch (err: any) {
+      toast.error('Failed to stop stack', { description: err.message });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRestart = async (id: string, name: string) => {
+    setActionLoadingId(id);
+    try {
+      await restartMutation.mutateAsync(id);
+      toast.success(`Stack "${name}" restarted`);
+    } catch (err: any) {
+      toast.error('Failed to restart stack', { description: err.message });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handlePull = async (id: string, name: string) => {
+    setActionLoadingId(id);
+    try {
+      await pullMutation.mutateAsync(id);
+      toast.success(`Stack "${name}" pulled and updated`);
+    } catch (err: any) {
+      toast.error('Failed to pull stack updates', { description: err.message });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleViewLogs = async (id: string, name: string) => {
+    setLogsModal({ id, name, logs: 'Loading compose logs...', loading: true });
+    try {
+      const res = await api.getStackLogs(id);
+      setLogsModal({ id, name, logs: res.logs || 'No logs available for this stack.', loading: false });
+    } catch (err: any) {
+      setLogsModal({ id, name, logs: `Failed to fetch logs: ${err.message}`, loading: false });
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete stack "${name}"?`)) {
+    if (confirm(`Are you sure you want to delete stack "${name}" and stop all its containers?`)) {
       try {
-        await deleteMutation.mutateAsync(id);
+        await deleteMutation.mutateAsync({ id, deleteVolumes: false });
         toast.success(`Stack "${name}" deleted`);
       } catch (err: any) {
         toast.error('Failed to delete stack', { description: err.message });
@@ -104,7 +182,19 @@ export function StacksView() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{stack.name}</h4>
-                        <Badge variant="success" dot className="text-[10px]">
+                        <Badge
+                          variant={
+                            stack.status === 'running'
+                              ? 'success'
+                              : stack.status === 'deploying'
+                              ? 'warning'
+                              : stack.status === 'error'
+                              ? 'destructive'
+                              : 'neutral'
+                          }
+                          dot
+                          className="text-[10px]"
+                        >
                           {stack.status}
                         </Badge>
                       </div>
@@ -124,42 +214,104 @@ export function StacksView() {
 
                   {/* Top-Right Quick Actions */}
                   <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="surface"
-                      size="sm"
-                      onClick={() =>
-                        setInspectStack({ name: stack.name, yaml: stack.compose_yaml })
-                      }
-                      className="gap-1.5 text-xs"
-                      title="Inspect compose yaml"
-                    >
-                      <IconCode className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                      View Compose
-                    </Button>
+                    {actionLoadingId === stack.id ? (
+                      <div className="flex items-center gap-1 px-2.5 py-1 text-xs text-zinc-400">
+                        <IconLoader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                        <span>Processing...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {stack.status === 'stopped' ? (
+                          <Button
+                            variant="surface"
+                            size="sm"
+                            onClick={() => handleStart(stack.id, stack.name)}
+                            className="gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+                            title="Start Stack"
+                          >
+                            <IconPlayerPlay className="w-3.5 h-3.5" />
+                            Start
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              variant="surface"
+                              size="sm"
+                              onClick={() => handleStop(stack.id, stack.name)}
+                              className="gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-amber-500"
+                              title="Stop Stack"
+                            >
+                              <IconPlayerStop className="w-3.5 h-3.5" />
+                              Stop
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleRestart(stack.id, stack.name)}
+                              title="Restart Stack"
+                            >
+                              <IconRotateClockwise className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handlePull(stack.id, stack.name)}
+                              title="Pull Latest Images and Redeploy"
+                            >
+                              <IconCloudDownload className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                            </Button>
+                          </>
+                        )}
 
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          `https://dockor.local/api/v1/webhooks/deploy/whk_${stack.id}`
-                        );
-                        toast.success('CI/CD Deploy Webhook URL copied');
-                      }}
-                      title="Copy CI/CD Webhook"
-                    >
-                      <IconWebhook className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                    </Button>
+                        <Button
+                          variant="surface"
+                          size="sm"
+                          onClick={() => handleViewLogs(stack.id, stack.name)}
+                          className="gap-1.5 text-xs"
+                          title="View Compose Logs"
+                        >
+                          <IconFileText className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                          Logs
+                        </Button>
 
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleDelete(stack.id, stack.name)}
-                      className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
-                      title="Delete Stack"
-                    >
-                      <IconTrash className="w-3.5 h-3.5" />
-                    </Button>
+                        <Button
+                          variant="surface"
+                          size="sm"
+                          onClick={() =>
+                            setInspectStack({ name: stack.name, yaml: stack.compose_yaml })
+                          }
+                          className="gap-1.5 text-xs"
+                          title="Inspect compose yaml"
+                        >
+                          <IconCode className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                          Compose
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `https://dockor.local/api/v1/webhooks/deploy/whk_${stack.id}`
+                            );
+                            toast.success('CI/CD Deploy Webhook URL copied');
+                          }}
+                          title="Copy CI/CD Webhook"
+                        >
+                          <IconWebhook className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleDelete(stack.id, stack.name)}
+                          className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                          title="Delete Stack"
+                        >
+                          <IconTrash className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -215,6 +367,32 @@ export function StacksView() {
             </DialogHeader>
             <div className="p-4 max-h-[70vh] overflow-auto bg-zinc-50 dark:bg-[#09090B] font-mono text-xs text-zinc-800 dark:text-zinc-300">
               <pre className="whitespace-pre">{inspectStack.yaml}</pre>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Stack Logs Dialog */}
+      {logsModal && (
+        <Dialog open={Boolean(logsModal)} onOpenChange={() => setLogsModal(null)}>
+          <DialogContent className="max-w-4xl bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] p-0 overflow-hidden rounded-2xl">
+            <DialogHeader className="p-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between">
+              <DialogTitle className="text-sm font-mono text-zinc-900 dark:text-zinc-200">
+                Logs: {logsModal.name}
+              </DialogTitle>
+              <Button
+                variant="surface"
+                size="sm"
+                onClick={() => handleViewLogs(logsModal.id, logsModal.name)}
+                disabled={logsModal.loading}
+                className="gap-1.5 text-xs mr-6"
+              >
+                <IconRotateClockwise className={`w-3.5 h-3.5 ${logsModal.loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </DialogHeader>
+            <div className="p-4 max-h-[70vh] min-h-[300px] overflow-auto bg-zinc-950 font-mono text-xs text-zinc-300 leading-relaxed">
+              <pre className="whitespace-pre-wrap">{logsModal.logs}</pre>
             </div>
           </DialogContent>
         </Dialog>

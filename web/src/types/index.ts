@@ -38,7 +38,7 @@ export interface Stack {
   id: string;
   name: string;
   node_id: string;
-  status: 'running' | 'stopped' | 'error' | 'unknown';
+  status: 'deploying' | 'running' | 'stopped' | 'error' | 'unknown';
   template_id?: string;
   compose_yaml: string;
   created_at: string;

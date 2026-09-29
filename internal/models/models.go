@@ -48,10 +48,11 @@ type Node struct {
 type StackStatus string
 
 const (
-	StackStatusRunning StackStatus = "running"
-	StackStatusStopped StackStatus = "stopped"
-	StackStatusError   StackStatus = "error"
-	StackStatusUnknown StackStatus = "unknown"
+	StackStatusDeploying StackStatus = "deploying"
+	StackStatusRunning   StackStatus = "running"
+	StackStatusStopped   StackStatus = "stopped"
+	StackStatusError     StackStatus = "error"
+	StackStatusUnknown   StackStatus = "unknown"
 )
 
 type Stack struct {

@@ -25,14 +25,20 @@ export const api = {
 
   // Stacks
   getStacks: () => fetch(`${API_BASE}/stacks`).then(handleResponse<Stack[]>),
+  getStack: (id: string) => fetch(`${API_BASE}/stacks/${id}`).then(handleResponse<Stack>),
   deployStack: (data: { name: string; template_id?: string; compose_yaml?: string; variables?: Record<string, any> }) =>
     fetch(`${API_BASE}/stacks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(handleResponse<Stack>),
-  deleteStack: (id: string) =>
-    fetch(`${API_BASE}/stacks/${id}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
+  startStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/start`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
+  stopStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/stop`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
+  restartStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/restart`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
+  pullStack: (id: string) => fetch(`${API_BASE}/stacks/${id}/pull`, { method: 'POST' }).then(handleResponse<{ message: string; output?: string }>),
+  getStackLogs: (id: string) => fetch(`${API_BASE}/stacks/${id}/logs`).then(handleResponse<{ logs: string }>),
+  deleteStack: (id: string, deleteVolumes = false) =>
+    fetch(`${API_BASE}/stacks/${id}?delete_volumes=${deleteVolumes}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
 
   // Containers
   getContainers: () => fetch(`${API_BASE}/containers`).then(handleResponse<Container[]>),

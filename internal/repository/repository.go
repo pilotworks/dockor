@@ -155,6 +155,25 @@ func (r *Repository) GetStack(ctx context.Context, id string) (*models.Stack, er
 	return &s, nil
 }
 
+func (r *Repository) UpdateStack(ctx context.Context, stack *models.Stack) error {
+	envBytes, _ := json.Marshal(stack.EnvVars)
+	stack.UpdatedAt = time.Now().UTC()
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE stacks
+		SET name = ?, status = ?, compose_yaml = ?, env_vars = ?, updated_at = ?
+		WHERE id = ?`,
+		stack.Name, string(stack.Status), stack.ComposeYAML, string(envBytes), stack.UpdatedAt, stack.ID,
+	)
+	return err
+}
+
+func (r *Repository) UpdateStackStatus(ctx context.Context, id string, status models.StackStatus) error {
+	now := time.Now().UTC()
+	_, err := r.db.ExecContext(ctx, "UPDATE stacks SET status = ?, updated_at = ? WHERE id = ?", string(status), now, id)
+	return err
+}
+
 func (r *Repository) DeleteStack(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM stacks WHERE id = ?", id)
 	return err
