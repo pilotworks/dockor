@@ -14,13 +14,14 @@ import {
 } from '../ui/select';
 import {
   IconFileText,
-  IconRefresh,
-  IconClearAll,
-  IconCopy,
-  IconCircleFilled,
   IconArrowDownCircle,
+  IconCopy,
+  IconClearAll,
+  IconRefresh,
+  IconCircleFilled,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import { useAppStore } from '../../stores/use-app-store';
 
 interface ContainerLogsModalProps {
   containerId: string;
@@ -29,22 +30,78 @@ interface ContainerLogsModalProps {
   onClose: () => void;
 }
 
+const lightTheme = {
+  background: '#ffffff',
+  foreground: '#18181b',
+  cursor: '#18181b',
+  selectionBackground: '#2563eb33',
+  black: '#000000',
+  red: '#dc2626',
+  green: '#16a34a',
+  yellow: '#ca8a04',
+  blue: '#2563eb',
+  magenta: '#9333ea',
+  cyan: '#0891b2',
+  white: '#71717a',
+  brightBlack: '#52525b',
+  brightRed: '#ef4444',
+  brightGreen: '#22c55e',
+  brightYellow: '#eab308',
+  brightBlue: '#3b82f6',
+  brightMagenta: '#a855f7',
+  brightCyan: '#06b6d4',
+  brightWhite: '#18181b',
+};
+
+const darkTheme = {
+  background: '#09090b',
+  foreground: '#e4e4e7',
+  cursor: '#09090b',
+  selectionBackground: '#2563eb55',
+  black: '#18181b',
+  red: '#f87171',
+  green: '#4ade80',
+  yellow: '#fbbf24',
+  blue: '#60a5fa',
+  magenta: '#c084fc',
+  cyan: '#38bdf8',
+  white: '#f4f4f5',
+  brightBlack: '#71717a',
+  brightRed: '#f87171',
+  brightGreen: '#4ade80',
+  brightYellow: '#fbbf24',
+  brightBlue: '#60a5fa',
+  brightMagenta: '#c084fc',
+  brightCyan: '#38bdf8',
+  brightWhite: '#ffffff',
+};
+
 export function ContainerLogsModal({
   containerId,
   containerName,
   isOpen,
   onClose,
 }: ContainerLogsModalProps) {
+  const { theme } = useAppStore();
+  const isDark = theme === 'dark';
+
   const [terminalElement, setTerminalElement] = useState<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [tail, setTail] = useState<string>('100');
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [reconnectKey, setReconnectKey] = useState<number>(0);
+
   const xtermInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const logsBufferRef = useRef<string>('');
 
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [tail, setTail] = useState<string>('200');
-  const [autoScroll, setAutoScroll] = useState<boolean>(true);
-  const [reconnectKey, setReconnectKey] = useState<number>(0);
+  // Dynamically update xterm theme on theme toggle
+  useEffect(() => {
+    if (xtermInstance.current) {
+      xtermInstance.current.options.theme = isDark ? darkTheme : lightTheme;
+    }
+  }, [isDark]);
 
   useEffect(() => {
     if (!isOpen || !terminalElement) return;
@@ -61,20 +118,7 @@ export function ContainerLogsModal({
       fontSize: 12,
       lineHeight: 1.25,
       scrollback: 5000,
-      theme: {
-        background: '#09090b',
-        foreground: '#e4e4e7',
-        cursor: '#09090b',
-        selectionBackground: '#2563eb55',
-        black: '#18181b',
-        red: '#f87171',
-        green: '#4ade80',
-        yellow: '#fbbf24',
-        blue: '#60a5fa',
-        magenta: '#c084fc',
-        cyan: '#38bdf8',
-        white: '#f4f4f5',
-      },
+      theme: isDark ? darkTheme : lightTheme,
     });
 
     const fitAddon = new FitAddon();
@@ -91,21 +135,24 @@ export function ContainerLogsModal({
       : window.location.host;
     const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
 
-    let hasOpened = false;
     const textDecoder = new TextDecoder();
+    let hasOpened = false;
 
     const setupWsHandlers = (targetWs: WebSocket) => {
-      targetWs.binaryType = 'arraybuffer';
       socketRef.current = targetWs;
+      targetWs.binaryType = 'arraybuffer';
 
       targetWs.onopen = () => {
         hasOpened = true;
         setStatus('connected');
-        try {
-          fitAddon.fit();
-        } catch {
-          // ignore layout fit error
-        }
+        term.writeln('\x1b[32m[Stream connected successfully]\x1b[0m\r\n');
+        setTimeout(() => {
+          try {
+            fitAddonInstance.current?.fit();
+          } catch {
+            // ignore
+          }
+        }, 50);
       };
 
       targetWs.onmessage = (event) => {
@@ -164,6 +211,7 @@ export function ContainerLogsModal({
     };
 
     window.addEventListener('resize', handleResize);
+
     const timer = setTimeout(handleResize, 100);
 
     return () => {
@@ -175,10 +223,9 @@ export function ContainerLogsModal({
       fitAddonInstance.current = null;
       socketRef.current = null;
     };
-  }, [isOpen, terminalElement, containerId, tail, autoScroll, reconnectKey]);
+  }, [isOpen, terminalElement, containerId, tail, reconnectKey]);
 
   const handleClear = () => {
-    logsBufferRef.current = '';
     xtermInstance.current?.clear();
   };
 
@@ -197,16 +244,16 @@ export function ContainerLogsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 gap-0 flex flex-col bg-[#09090b] dark:bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
+      <DialogContent className="max-w-5xl h-[80vh] p-0 gap-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
         {/* Top Header */}
-        <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
+        <DialogHeader className="px-5 py-3 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between shrink-0 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <IconFileText className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <DialogTitle className="text-sm font-semibold text-zinc-100 font-mono">
+                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
                   {containerName}
                 </DialogTitle>
                 <Badge
@@ -217,7 +264,7 @@ export function ContainerLogsModal({
                   {status}
                 </Badge>
               </div>
-              <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
                 Live Container Stream (stdout/stderr)
               </p>
             </div>
@@ -226,10 +273,10 @@ export function ContainerLogsModal({
           <div className="flex items-center gap-2 mr-6">
             {/* Tail Selector */}
             <Select value={tail} onValueChange={(val) => setTail(val)}>
-              <SelectTrigger className="h-7 w-[130px] px-2.5 bg-zinc-900 border-zinc-800 text-[11px] font-mono text-zinc-300 focus:ring-0 focus:border-blue-500 shadow-none">
+              <SelectTrigger className="h-7 w-[130px] px-2.5 text-[11px] font-mono focus:ring-0 focus:border-blue-500 shadow-none">
                 <SelectValue placeholder="Lines" />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="50" className="text-[11px] font-mono">
                   Last 50 lines
                 </SelectItem>
@@ -268,7 +315,7 @@ export function ContainerLogsModal({
               variant="surface"
               size="sm"
               onClick={handleCopy}
-              className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+              className="h-7 px-2.5 text-xs gap-1"
               title="Copy Output"
             >
               <IconCopy className="w-3.5 h-3.5" />
@@ -279,7 +326,7 @@ export function ContainerLogsModal({
               variant="surface"
               size="sm"
               onClick={handleClear}
-              className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+              className="h-7 px-2.5 text-xs gap-1"
               title="Clear Terminal Output"
             >
               <IconClearAll className="w-3.5 h-3.5" />
@@ -290,7 +337,7 @@ export function ContainerLogsModal({
               variant="surface"
               size="sm"
               onClick={handleReconnect}
-              className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+              className="h-7 px-2.5 text-xs gap-1"
               title="Reconnect Stream"
             >
               <IconRefresh className="w-3.5 h-3.5" />
@@ -300,7 +347,7 @@ export function ContainerLogsModal({
         </DialogHeader>
 
         {/* Logs Terminal Output */}
-        <div ref={setTerminalElement} className="flex-1 w-full h-full p-3 overflow-hidden bg-[#09090b]" />
+        <div ref={setTerminalElement} className="flex-1 w-full h-full p-3 overflow-hidden bg-white dark:bg-[#09090b] transition-colors" />
       </DialogContent>
     </Dialog>
   );

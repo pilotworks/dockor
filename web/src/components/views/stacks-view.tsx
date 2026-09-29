@@ -393,11 +393,11 @@ export function StacksView() {
       {/* Monaco Compose Editor & Redeploy Dialog */}
       {editStackModal && (
         <Dialog open={Boolean(editStackModal)} onOpenChange={() => setEditStackModal(null)}>
-          <DialogContent className="max-w-4xl h-[82vh] p-0 flex flex-col bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
-            <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
+          <DialogContent className="max-w-4xl h-[82vh] p-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
+            <DialogHeader className="px-5 py-3 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between shrink-0 transition-colors">
               <div className="flex items-center gap-2">
-                <IconCode className="w-4 h-4 text-blue-400" />
-                <DialogTitle className="text-sm font-mono text-zinc-200">
+                <IconCode className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                <DialogTitle className="text-sm font-mono text-zinc-900 dark:text-zinc-200">
                   {editStackModal.name} / docker-compose.yml
                 </DialogTitle>
                 {editStackModal.yaml !== editStackModal.originalYaml && (
@@ -417,7 +417,7 @@ export function StacksView() {
                         prev ? { ...prev, yaml: prev.originalYaml } : null
                       )
                     }
-                    className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+                    className="h-7 px-2.5 text-xs gap-1"
                     title="Revert to original saved YAML"
                   >
                     <IconRotateClockwise className="w-3.5 h-3.5" />
@@ -432,7 +432,7 @@ export function StacksView() {
                     navigator.clipboard.writeText(editStackModal.yaml);
                     toast.success('Compose YAML copied to clipboard');
                   }}
-                  className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+                  className="h-7 px-2.5 text-xs gap-1"
                   title="Copy YAML"
                 >
                   <IconCopy className="w-3.5 h-3.5" />
@@ -457,7 +457,7 @@ export function StacksView() {
               </div>
             </DialogHeader>
 
-            <div className="flex-1 w-full h-full min-h-0 bg-[#09090b]">
+            <div className="flex-1 w-full h-full min-h-0 bg-white dark:bg-[#09090b]">
               <ComposeEditor
                 value={editStackModal.yaml}
                 onChange={(val) =>
@@ -473,8 +473,8 @@ export function StacksView() {
       {/* Stack Logs Dialog */}
       {logsModal && (
         <Dialog open={Boolean(logsModal)} onOpenChange={() => setLogsModal(null)}>
-          <DialogContent className="max-w-4xl bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] p-0 overflow-hidden rounded-2xl">
-            <DialogHeader className="p-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between">
+          <DialogContent className="max-w-4xl bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] p-0 overflow-hidden rounded-2xl transition-colors">
+            <DialogHeader className="p-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between transition-colors">
               <DialogTitle className="text-sm font-mono text-zinc-900 dark:text-zinc-200">
                 Logs: {logsModal.name}
               </DialogTitle>
@@ -489,7 +489,7 @@ export function StacksView() {
                 Refresh
               </Button>
             </DialogHeader>
-            <div className="p-4 max-h-[70vh] min-h-[300px] overflow-auto bg-zinc-950 font-mono text-xs text-zinc-300 leading-relaxed">
+            <div className="p-4 max-h-[70vh] min-h-[300px] overflow-auto bg-zinc-50 dark:bg-[#09090B] font-mono text-xs text-zinc-800 dark:text-zinc-300 leading-relaxed transition-colors">
               <pre className="whitespace-pre-wrap">{logsModal.logs}</pre>
             </div>
           </DialogContent>

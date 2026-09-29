@@ -358,15 +358,15 @@ export function DeployModal() {
           {/* Right Column: Monaco Compose Editor */}
           <div
             className={cn(
-              'bg-[#09090B] flex flex-col min-h-0 transition-all',
+              'bg-white dark:bg-[#09090B] flex flex-col min-h-0 transition-all',
               viewMode === 'split' ? 'w-1/2' : viewMode === 'yaml' ? 'w-full' : 'hidden'
             )}
           >
             {/* Editor Subheader Toolbar */}
-            <div className="px-4 py-2.5 border-b border-zinc-800 bg-[#0E0E12] flex items-center justify-between shrink-0">
+            <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#0E0E12] flex items-center justify-between shrink-0 transition-colors">
               <div className="flex items-center gap-2">
-                <IconCode className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-semibold text-zinc-200 font-mono">
+                <IconCode className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 font-mono">
                   docker-compose.yml
                 </span>
                 <Badge
@@ -384,7 +384,7 @@ export function DeployModal() {
                     variant="surface"
                     size="sm"
                     onClick={handleResetToTemplate}
-                    className="h-6 px-2 text-[10px] gap-1 text-zinc-300 hover:text-white"
+                    className="h-6 px-2 text-[10px] gap-1"
                     title="Reset to template defaults"
                   >
                     <IconRotateClockwise className="w-3 h-3" />
@@ -419,7 +419,7 @@ export function DeployModal() {
                   size="icon-sm"
                   onClick={handleCopyCompose}
                   title="Copy YAML"
-                  className="h-6 w-6 text-zinc-400 hover:text-zinc-200"
+                  className="h-6 w-6 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 >
                   <IconCopy className="w-3 h-3" />
                 </Button>
@@ -427,7 +427,7 @@ export function DeployModal() {
             </div>
 
             {/* Monaco Editor Container */}
-            <div className="flex-1 w-full h-full min-h-0 bg-[#09090B]">
+            <div className="flex-1 w-full h-full min-h-0 bg-white dark:bg-[#09090B]">
               <ComposeEditor
                 value={isCustomYaml ? customYaml : (renderedCompose || template.compose_yaml || '# No compose definition')}
                 onChange={(val) => {

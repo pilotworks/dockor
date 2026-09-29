@@ -14,10 +14,11 @@ import {
 } from '../ui/select';
 import {
   IconTerminal2,
-  IconRefresh,
   IconClearAll,
+  IconRefresh,
   IconCircleFilled,
 } from '@tabler/icons-react';
+import { useAppStore } from '../../stores/use-app-store';
 
 interface ContainerTerminalModalProps {
   containerId: string;
@@ -26,20 +27,78 @@ interface ContainerTerminalModalProps {
   onClose: () => void;
 }
 
+const lightTheme = {
+  background: '#ffffff',
+  foreground: '#18181b',
+  cursor: '#2563eb',
+  cursorAccent: '#ffffff',
+  selectionBackground: '#2563eb33',
+  black: '#000000',
+  red: '#dc2626',
+  green: '#16a34a',
+  yellow: '#ca8a04',
+  blue: '#2563eb',
+  magenta: '#9333ea',
+  cyan: '#0891b2',
+  white: '#71717a',
+  brightBlack: '#52525b',
+  brightRed: '#ef4444',
+  brightGreen: '#22c55e',
+  brightYellow: '#eab308',
+  brightBlue: '#3b82f6',
+  brightMagenta: '#a855f7',
+  brightCyan: '#06b6d4',
+  brightWhite: '#18181b',
+};
+
+const darkTheme = {
+  background: '#09090b',
+  foreground: '#f4f4f5',
+  cursor: '#38bdf8',
+  cursorAccent: '#09090b',
+  selectionBackground: '#2563eb55',
+  black: '#18181b',
+  red: '#ef4444',
+  green: '#10b981',
+  yellow: '#f59e0b',
+  blue: '#3b82f6',
+  magenta: '#a855f7',
+  cyan: '#06b6d4',
+  white: '#fafafa',
+  brightBlack: '#71717a',
+  brightRed: '#f87171',
+  brightGreen: '#34d399',
+  brightYellow: '#fbbf24',
+  brightBlue: '#60a5fa',
+  brightMagenta: '#c084fc',
+  brightCyan: '#22d3ee',
+  brightWhite: '#ffffff',
+};
+
 export function ContainerTerminalModal({
   containerId,
   containerName,
   isOpen,
   onClose,
 }: ContainerTerminalModalProps) {
+  const { theme } = useAppStore();
+  const isDark = theme === 'dark';
+
   const [terminalElement, setTerminalElement] = useState<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [shell, setShell] = useState<string>('/bin/sh');
+  const [reconnectKey, setReconnectKey] = useState<number>(0);
+
   const xtermInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [shell, setShell] = useState<string>('/bin/sh');
-  const [reconnectKey, setReconnectKey] = useState<number>(0);
+  // Dynamically update xterm theme on theme toggle
+  useEffect(() => {
+    if (xtermInstance.current) {
+      xtermInstance.current.options.theme = isDark ? darkTheme : lightTheme;
+    }
+  }, [isDark]);
 
   useEffect(() => {
     if (!isOpen || !terminalElement) return;
@@ -53,29 +112,7 @@ export function ContainerTerminalModal({
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       fontSize: 13,
       lineHeight: 1.25,
-      theme: {
-        background: '#09090b',
-        foreground: '#f4f4f5',
-        cursor: '#38bdf8',
-        cursorAccent: '#09090b',
-        selectionBackground: '#2563eb55',
-        black: '#18181b',
-        red: '#ef4444',
-        green: '#10b981',
-        yellow: '#f59e0b',
-        blue: '#3b82f6',
-        magenta: '#a855f7',
-        cyan: '#06b6d4',
-        white: '#fafafa',
-        brightBlack: '#71717a',
-        brightRed: '#f87171',
-        brightGreen: '#34d399',
-        brightYellow: '#fbbf24',
-        brightBlue: '#60a5fa',
-        brightMagenta: '#c084fc',
-        brightCyan: '#22d3ee',
-        brightWhite: '#ffffff',
-      },
+      theme: isDark ? darkTheme : lightTheme,
     });
 
     const fitAddon = new FitAddon();
@@ -90,43 +127,52 @@ export function ContainerTerminalModal({
     const primaryHost = window.location.port === '5173'
       ? `${window.location.hostname}:9000`
       : window.location.host;
-    const cleanCmd = shell.trim() || '/bin/sh';
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(cleanCmd)}`;
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}`;
 
     let hasOpened = false;
 
     const setupWsHandlers = (targetWs: WebSocket) => {
-      targetWs.binaryType = 'arraybuffer';
       socketRef.current = targetWs;
+      targetWs.binaryType = 'arraybuffer';
 
       targetWs.onopen = () => {
         hasOpened = true;
         setStatus('connected');
         term.focus();
-        try {
-          fitAddon.fit();
-        } catch {
-          // ignore layout fit errors
-        }
-        if (targetWs.readyState === WebSocket.OPEN) {
-          targetWs.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-        }
+
+        setTimeout(() => {
+          try {
+            fitAddonInstance.current?.fit();
+            if (targetWs.readyState === WebSocket.OPEN) {
+              targetWs.send(
+                JSON.stringify({
+                  type: 'resize',
+                  cols: term.cols,
+                  rows: term.rows,
+                })
+              );
+            }
+          } catch {
+            // ignore fit error
+          }
+        }, 50);
       };
 
+      const textDecoder = new TextDecoder();
       targetWs.onmessage = (event) => {
         if (typeof event.data === 'string') {
           term.write(event.data);
         } else if (event.data instanceof ArrayBuffer) {
-          term.write(new Uint8Array(event.data));
+          term.write(textDecoder.decode(event.data));
         }
       };
 
       const triggerFallback = () => {
         if (!hasOpened && window.location.port === '5173') {
-          hasOpened = true; // prevent infinite fallback loop
+          hasOpened = true; // prevent infinite loop
           targetWs.close();
           const fallbackHost = window.location.host;
-          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(cleanCmd)}`;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}`;
           console.log('[Terminal WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);
@@ -139,37 +185,38 @@ export function ContainerTerminalModal({
         console.warn('[Terminal WS Error]', e);
         if (triggerFallback()) return;
         setStatus('disconnected');
-        term.writeln('\r\n\x1b[31m[WebSocket Connection Error: Check if container is running and Docker is reachable]\x1b[0m');
+        term.writeln('\r\n\x1b[31m[WebSocket connection error: Check if backend is reachable]\x1b[0m');
       };
 
-      targetWs.onclose = (e) => {
+      targetWs.onclose = () => {
         if (triggerFallback()) return;
         setStatus('disconnected');
-        if (e.code !== 1000) {
-          term.writeln(`\r\n\x1b[33m[Session Terminated (code: ${e.code})]\x1b[0m`);
-        }
       };
     };
 
     const initialWs = new WebSocket(wsUrl);
     setupWsHandlers(initialWs);
 
-    // Forward user keystrokes to container stdin
+    // 3. User input forward to WebSocket
     const onDataDisposable = term.onData((data) => {
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(data);
+        socketRef.current.send(
+          JSON.stringify({
+            type: 'input',
+            data,
+          })
+        );
       }
     });
 
-    // Handle window resize
+    // 4. Handle resize
     const handleResize = () => {
-      if (!fitAddonInstance.current || !xtermInstance.current) return;
       try {
-        fitAddonInstance.current.fit();
+        fitAddonInstance.current?.fit();
       } catch {
         // ignore layout resize error
       }
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
+      if (xtermInstance.current && socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(
           JSON.stringify({
             type: 'resize',
@@ -207,16 +254,16 @@ export function ContainerTerminalModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl h-[80vh] p-0 gap-0 flex flex-col bg-[#09090b] dark:bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
+      <DialogContent className="max-w-5xl h-[80vh] p-0 gap-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
         {/* Top Header */}
-        <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
+        <DialogHeader className="px-5 py-3 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between shrink-0 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-800/50 flex items-center justify-center text-blue-400">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <IconTerminal2 className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <DialogTitle className="text-sm font-semibold text-zinc-100 font-mono">
+                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
                   {containerName}
                 </DialogTitle>
                 <Badge
@@ -227,7 +274,7 @@ export function ContainerTerminalModal({
                   {status}
                 </Badge>
               </div>
-              <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
                 Interactive Container Shell (WebSocket TTY)
               </p>
             </div>
@@ -236,10 +283,10 @@ export function ContainerTerminalModal({
           <div className="flex items-center gap-2 mr-6">
             {/* Shell Selector */}
             <Select value={shell} onValueChange={(val) => setShell(val)}>
-              <SelectTrigger className="h-7 w-[110px] px-2.5 bg-zinc-900 border-zinc-800 text-[11px] font-mono text-zinc-300 focus:ring-0 focus:border-blue-500 shadow-none">
+              <SelectTrigger className="h-7 w-[110px] px-2.5 text-[11px] font-mono focus:ring-0 focus:border-blue-500 shadow-none">
                 <SelectValue placeholder="Shell" />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="/bin/sh" className="text-[11px] font-mono">
                   /bin/sh
                 </SelectItem>
@@ -256,7 +303,7 @@ export function ContainerTerminalModal({
               variant="surface"
               size="sm"
               onClick={handleClear}
-              className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+              className="h-7 px-2.5 text-xs gap-1"
               title="Clear Terminal Output"
             >
               <IconClearAll className="w-3.5 h-3.5" />
@@ -267,7 +314,7 @@ export function ContainerTerminalModal({
               variant="surface"
               size="sm"
               onClick={handleReconnect}
-              className="h-7 px-2.5 text-xs gap-1 border-zinc-800 text-zinc-300 hover:text-white"
+              className="h-7 px-2.5 text-xs gap-1"
               title="Reconnect Shell"
             >
               <IconRefresh className="w-3.5 h-3.5" />
@@ -279,11 +326,10 @@ export function ContainerTerminalModal({
         {/* Terminal Canvas Container */}
         <div
           ref={setTerminalElement}
-          className="flex-1 w-full h-full p-3 overflow-hidden bg-[#09090b] cursor-text"
+          className="flex-1 w-full h-full p-3 overflow-hidden bg-white dark:bg-[#09090b] cursor-text transition-colors"
           onClick={() => xtermInstance.current?.focus()}
         />
       </DialogContent>
     </Dialog>
-
   );
 }
