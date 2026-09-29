@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  dockor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dockor:latest
+    container_name: dockor
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - DOCKOR_PORT=9000
+      - DOCKOR_DATA_DIR=/app/data
+      - DOCKOR_TEMPLATES_DIR=/app/templates
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockor_data:/app/data
+
+volumes:
+  dockor_data:

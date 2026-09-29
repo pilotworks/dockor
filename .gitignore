@@ -1,0 +1,42 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+dist/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+*.out
+
+# Node / Frontend
+node_modules/
+.pnpm-store/
+web/dist/
+web/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dockor runtime data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# IDE / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local

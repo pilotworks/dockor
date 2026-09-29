@@ -1,0 +1,38 @@
+metadata:
+  id: "nextcloud"
+  name: "Nextcloud Hub"
+  version: "28.0.4"
+  description: "Self-hosted productivity platform for files, calendars, and collaborative documents."
+  category: "Productivity"
+  tags: ["cloud", "storage", "collaboration"]
+  author: "Dockor Community"
+  icon: "https://raw.githubusercontent.com/nextcloud/server/master/core/img/logo/logo.svg"
+  website: "https://nextcloud.com"
+  documentation: "https://docs.nextcloud.com"
+
+variables:
+  - name: APP_PORT
+    label: "Web Interface Port"
+    type: "port"
+    default: 8080
+    required: true
+    description: "External host port for accessing the Nextcloud web interface."
+    port_config:
+      protocol: "tcp"
+      auto_resolve_conflict: true
+
+  - name: MYSQL_ROOT_PASSWORD
+    label: "Database Root Password"
+    type: "secret"
+    generator: "random_string(32, charset=alphanumeric)"
+    required: true
+    hidden: true
+    description: "Administrative password for the MariaDB root account."
+
+  - name: MYSQL_PASSWORD
+    label: "Nextcloud DB Password"
+    type: "secret"
+    generator: "random_string(24, charset=alphanumeric)"
+    required: true
+    hidden: true
+    description: "User password for Nextcloud to connect to MariaDB."

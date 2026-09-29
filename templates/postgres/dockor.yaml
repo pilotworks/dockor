@@ -1,0 +1,55 @@
+metadata:
+  id: "postgres"
+  name: "PostgreSQL & pgAdmin"
+  version: "16.2"
+  description: "Enterprise open-source relational database paired with the modern pgAdmin 4 management web UI."
+  category: "Database"
+  tags: ["sql", "database", "postgres", "admin"]
+  author: "Dockor Community"
+  icon: "https://raw.githubusercontent.com/docker-library/docs/master/postgres/logo.png"
+  website: "https://www.postgresql.org"
+  documentation: "https://www.postgresql.org/docs/"
+
+variables:
+  - name: POSTGRES_PORT
+    label: "PostgreSQL Port"
+    type: "port"
+    default: 5432
+    required: true
+    description: "External TCP port for direct database connections."
+    port_config:
+      protocol: "tcp"
+      auto_resolve_conflict: true
+
+  - name: PGADMIN_PORT
+    label: "pgAdmin Web Port"
+    type: "port"
+    default: 5050
+    required: true
+    description: "External HTTP port for accessing the pgAdmin 4 web dashboard."
+    port_config:
+      protocol: "tcp"
+      auto_resolve_conflict: true
+
+  - name: POSTGRES_PASSWORD
+    label: "PostgreSQL Password"
+    type: "secret"
+    generator: "random_string(32, charset=alphanumeric)"
+    required: true
+    hidden: true
+    description: "Password for the superuser postgres account."
+
+  - name: PGADMIN_DEFAULT_EMAIL
+    label: "pgAdmin Login Email"
+    type: "string"
+    default: "admin@dockor.local"
+    required: true
+    description: "Email address used to log into the pgAdmin dashboard."
+
+  - name: PGADMIN_DEFAULT_PASSWORD
+    label: "pgAdmin Login Password"
+    type: "secret"
+    generator: "random_string(24, charset=alphanumeric)"
+    required: true
+    hidden: true
+    description: "Password for the initial pgAdmin administrator account."
