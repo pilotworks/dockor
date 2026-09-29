@@ -25,16 +25,17 @@ export function ContainerTerminalModal({
   isOpen,
   onClose,
 }: ContainerTerminalModalProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
+  const [terminalElement, setTerminalElement] = useState<HTMLDivElement | null>(null);
   const xtermInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [shell, setShell] = useState<string>('/bin/sh');
+  const [reconnectKey, setReconnectKey] = useState<number>(0);
 
   useEffect(() => {
-    if (!isOpen || !terminalRef.current) return;
+    if (!isOpen || !terminalElement) return;
 
     setStatus('connecting');
 
@@ -71,19 +72,20 @@ export function ContainerTerminalModal({
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-    fitAddon.fit();
+    term.open(terminalElement);
 
     xtermInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // 2. Connect WebSocket to backend exec endpoint
+    // 2. Connect WebSocket: in Vite dev mode (port 5173), connect directly to backend on 9000 to avoid proxy hang
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${proto}//${host}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
+    const primaryHost = window.location.port === '5173'
+      ? `${window.location.hostname}:9000`
+      : window.location.host;
+    const cleanCmd = shell.trim() || '/bin/sh';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(cleanCmd)}`;
 
     let hasOpened = false;
-    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const setupWsHandlers = (targetWs: WebSocket) => {
       targetWs.binaryType = 'arraybuffer';
@@ -91,12 +93,13 @@ export function ContainerTerminalModal({
 
       targetWs.onopen = () => {
         hasOpened = true;
-        if (fallbackTimeout) {
-          clearTimeout(fallbackTimeout);
-          fallbackTimeout = null;
-        }
         setStatus('connected');
         term.focus();
+        try {
+          fitAddon.fit();
+        } catch {
+          // ignore layout fit errors
+        }
         if (targetWs.readyState === WebSocket.OPEN) {
           targetWs.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
         }
@@ -113,13 +116,10 @@ export function ContainerTerminalModal({
       const triggerFallback = () => {
         if (!hasOpened && window.location.port === '5173') {
           hasOpened = true; // prevent infinite fallback loop
-          if (fallbackTimeout) {
-            clearTimeout(fallbackTimeout);
-            fallbackTimeout = null;
-          }
           targetWs.close();
-          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
-          console.log('[Terminal WS] Falling back directly to backend on port 9000:', fallbackUrl);
+          const fallbackHost = window.location.host;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(cleanCmd)}`;
+          console.log('[Terminal WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);
           return true;
@@ -146,20 +146,6 @@ export function ContainerTerminalModal({
     const initialWs = new WebSocket(wsUrl);
     setupWsHandlers(initialWs);
 
-    // If still in CONNECTING after 2.5s on Vite dev port 5173, force fallback to backend port 9000
-    if (window.location.port === '5173') {
-      fallbackTimeout = setTimeout(() => {
-        if (!hasOpened && socketRef.current?.readyState === WebSocket.CONNECTING) {
-          console.log('[Terminal WS] Connection timed out on proxy, switching directly to port 9000...');
-          socketRef.current.close();
-          hasOpened = true;
-          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/exec?cmd=${encodeURIComponent(shell)}`;
-          const fallbackWs = new WebSocket(fallbackUrl);
-          setupWsHandlers(fallbackWs);
-        }
-      }, 2500);
-    }
-
     // Forward user keystrokes to container stdin
     const onDataDisposable = term.onData((data) => {
       if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -170,7 +156,11 @@ export function ContainerTerminalModal({
     // Handle window resize
     const handleResize = () => {
       if (!fitAddonInstance.current || !xtermInstance.current) return;
-      fitAddonInstance.current.fit();
+      try {
+        fitAddonInstance.current.fit();
+      } catch {
+        // ignore layout resize error
+      }
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(
           JSON.stringify({
@@ -184,12 +174,11 @@ export function ContainerTerminalModal({
 
     window.addEventListener('resize', handleResize);
 
-    // Initial delayed fit to ensure modal dialog layout rendered
-    const timer = setTimeout(handleResize, 150);
+    // Fit terminal once modal dialog animation settles
+    const timer = setTimeout(handleResize, 100);
 
     return () => {
       clearTimeout(timer);
-      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       window.removeEventListener('resize', handleResize);
       onDataDisposable.dispose();
       socketRef.current?.close();
@@ -198,11 +187,10 @@ export function ContainerTerminalModal({
       fitAddonInstance.current = null;
       socketRef.current = null;
     };
-  }, [isOpen, containerId, shell]);
+  }, [isOpen, terminalElement, containerId, shell, reconnectKey]);
 
   const handleReconnect = () => {
-    // Toggling state triggers effect re-run
-    setShell((prev) => (prev === '/bin/sh' ? '/bin/sh ' : '/bin/sh'));
+    setReconnectKey((prev) => prev + 1);
   };
 
   const handleClear = () => {
@@ -240,7 +228,7 @@ export function ContainerTerminalModal({
           <div className="flex items-center gap-2 mr-6">
             {/* Shell Selector */}
             <select
-              value={shell.trim()}
+              value={shell}
               onChange={(e) => setShell(e.target.value)}
               className="h-7 px-2 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-blue-500"
             >
@@ -275,11 +263,12 @@ export function ContainerTerminalModal({
 
         {/* Terminal Canvas Container */}
         <div
-          ref={terminalRef}
+          ref={setTerminalElement}
           className="flex-1 w-full h-full p-3 overflow-hidden bg-[#09090b] cursor-text"
           onClick={() => xtermInstance.current?.focus()}
         />
       </DialogContent>
     </Dialog>
+
   );
 }

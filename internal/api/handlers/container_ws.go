@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -119,7 +120,7 @@ func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := chi.URLParam(r, "id")
-	cmdParam := r.URL.Query().Get("cmd")
+	cmdParam := strings.TrimSpace(r.URL.Query().Get("cmd"))
 	if cmdParam == "" {
 		cmdParam = "/bin/sh"
 	}

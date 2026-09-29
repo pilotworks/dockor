@@ -28,7 +28,7 @@ export function ContainerLogsModal({
   isOpen,
   onClose,
 }: ContainerLogsModalProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
+  const [terminalElement, setTerminalElement] = useState<HTMLDivElement | null>(null);
   const xtermInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -37,9 +37,10 @@ export function ContainerLogsModal({
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [tail, setTail] = useState<string>('200');
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [reconnectKey, setReconnectKey] = useState<number>(0);
 
   useEffect(() => {
-    if (!isOpen || !terminalRef.current) return;
+    if (!isOpen || !terminalElement) return;
 
     setStatus('connecting');
     logsBufferRef.current = '';
@@ -70,19 +71,19 @@ export function ContainerLogsModal({
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-    fitAddon.fit();
+    term.open(terminalElement);
 
     xtermInstance.current = term;
     fitAddonInstance.current = fitAddon;
 
-    // Connect WebSocket
+    // Connect WebSocket: in Vite dev mode (port 5173), connect directly to backend on 9000 to avoid proxy hang
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${proto}//${host}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+    const primaryHost = window.location.port === '5173'
+      ? `${window.location.hostname}:9000`
+      : window.location.host;
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
 
     let hasOpened = false;
-    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
     const textDecoder = new TextDecoder();
 
     const setupWsHandlers = (targetWs: WebSocket) => {
@@ -91,11 +92,12 @@ export function ContainerLogsModal({
 
       targetWs.onopen = () => {
         hasOpened = true;
-        if (fallbackTimeout) {
-          clearTimeout(fallbackTimeout);
-          fallbackTimeout = null;
-        }
         setStatus('connected');
+        try {
+          fitAddon.fit();
+        } catch {
+          // ignore layout fit error
+        }
       };
 
       targetWs.onmessage = (event) => {
@@ -118,13 +120,10 @@ export function ContainerLogsModal({
       const triggerFallback = () => {
         if (!hasOpened && window.location.port === '5173') {
           hasOpened = true; // prevent infinite fallback loop
-          if (fallbackTimeout) {
-            clearTimeout(fallbackTimeout);
-            fallbackTimeout = null;
-          }
           targetWs.close();
-          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
-          console.log('[Logs WS] Falling back directly to backend on port 9000:', fallbackUrl);
+          const fallbackHost = window.location.host;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+          console.log('[Logs WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);
           return true;
@@ -148,30 +147,19 @@ export function ContainerLogsModal({
     const initialWs = new WebSocket(wsUrl);
     setupWsHandlers(initialWs);
 
-    // If still in CONNECTING after 2.5s on Vite dev port 5173, force fallback to backend port 9000
-    if (window.location.port === '5173') {
-      fallbackTimeout = setTimeout(() => {
-        if (!hasOpened && socketRef.current?.readyState === WebSocket.CONNECTING) {
-          console.log('[Logs WS] Connection timed out on proxy, switching directly to port 9000...');
-          socketRef.current.close();
-          hasOpened = true;
-          const fallbackUrl = `ws://${window.location.hostname}:9000/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
-          const fallbackWs = new WebSocket(fallbackUrl);
-          setupWsHandlers(fallbackWs);
-        }
-      }, 2500);
-    }
-
     const handleResize = () => {
-      fitAddonInstance.current?.fit();
+      try {
+        fitAddonInstance.current?.fit();
+      } catch {
+        // ignore layout resize error
+      }
     };
 
     window.addEventListener('resize', handleResize);
-    const timer = setTimeout(handleResize, 150);
+    const timer = setTimeout(handleResize, 100);
 
     return () => {
       clearTimeout(timer);
-      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       window.removeEventListener('resize', handleResize);
       socketRef.current?.close();
       term.dispose();
@@ -179,7 +167,7 @@ export function ContainerLogsModal({
       fitAddonInstance.current = null;
       socketRef.current = null;
     };
-  }, [isOpen, containerId, tail, autoScroll]);
+  }, [isOpen, terminalElement, containerId, tail, autoScroll, reconnectKey]);
 
   const handleClear = () => {
     logsBufferRef.current = '';
@@ -196,8 +184,7 @@ export function ContainerLogsModal({
   };
 
   const handleReconnect = () => {
-    // Re-trigger useEffect by toggling tail
-    setTail((prev) => (prev === '200' ? '201' : '200'));
+    setReconnectKey((prev) => prev + 1);
   };
 
   return (
@@ -294,7 +281,7 @@ export function ContainerLogsModal({
         </DialogHeader>
 
         {/* Logs Terminal Output */}
-        <div ref={terminalRef} className="flex-1 w-full h-full p-3 overflow-hidden bg-[#09090b]" />
+        <div ref={setTerminalElement} className="flex-1 w-full h-full p-3 overflow-hidden bg-[#09090b]" />
       </DialogContent>
     </Dialog>
   );
