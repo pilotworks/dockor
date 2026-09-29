@@ -1,4 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -22,6 +31,16 @@ interface ContainerStatsModalProps {
   onClose: () => void;
 }
 
+interface MetricPoint {
+  time: string;
+  cpu: number;
+  memoryMB: number;
+  rxKB: number;
+  txKB: number;
+  blockReadKB: number;
+  blockWriteKB: number;
+}
+
 function formatBytes(bytes: number, decimals = 1): string {
   if (bytes <= 0) return '0 B';
   const k = 1024;
@@ -40,46 +59,25 @@ function formatRate(bytesPerSec: number): string {
   return `${val} ${sizes[i]}`;
 }
 
-interface SparklineProps {
-  data: number[];
-  color: string;
-  gradientId: string;
-  maxVal?: number;
-  height?: number;
-}
-
-function Sparkline({ data, color, gradientId, maxVal, height = 48 }: SparklineProps) {
-  if (data.length < 2) {
-    return (
-      <div style={{ height }} className="w-full flex items-center justify-center text-[10px] text-zinc-600 font-mono">
-        Collecting live metrics...
-      </div>
-    );
-  }
-
-  const computedMax = maxVal ?? Math.max(...data, 1);
-  const width = 300;
-  const points = data.map((val, idx) => {
-    const x = (idx / (data.length - 1)) * width;
-    const norm = Math.min(1, Math.max(0, val / computedMax));
-    const y = height - norm * (height - 6) - 3;
-    return { x, y };
-  });
-
-  const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
-  const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+// Custom Dark Tooltip Component
+function CustomChartTooltip({ active, payload, label, unit = '' }: any) {
+  if (!active || !payload || !payload.length) return null;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible" style={{ height }} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradientId})`} />
-      <path d={pathD} fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="bg-zinc-900/95 backdrop-blur border border-zinc-800 rounded-lg p-2.5 shadow-2xl text-[11px] font-mono space-y-1">
+      <div className="text-zinc-400 font-semibold border-b border-zinc-800 pb-1 mb-1">{label}</div>
+      {payload.map((item: any, idx: number) => (
+        <div key={idx} className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5" style={{ color: item.color }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+            {item.name}:
+          </span>
+          <span className="font-bold text-zinc-100">
+            {typeof item.value === 'number' ? item.value.toFixed(1) : item.value} {unit}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -96,11 +94,7 @@ export function ContainerStatsModal({
   isPausedRef.current = isPaused;
 
   const [currentStats, setCurrentStats] = useState<ContainerStatsData | null>(null);
-  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
-  const [memHistory, setMemHistory] = useState<number[]>([]);
-  const [rxHistory, setRxHistory] = useState<number[]>([]);
-  const [txHistory, setTxHistory] = useState<number[]>([]);
-  const [blockHistory, setBlockHistory] = useState<number[]>([]);
+  const [history, setHistory] = useState<MetricPoint[]>([]);
   const [reconnectKey, setReconnectKey] = useState<number>(0);
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -132,11 +126,24 @@ export function ContainerStatsModal({
           const data: ContainerStatsData = JSON.parse(event.data);
           setCurrentStats(data);
 
-          setCpuHistory((prev) => [...prev.slice(-29), data.cpu_percent]);
-          setMemHistory((prev) => [...prev.slice(-29), data.memory_usage]);
-          setRxHistory((prev) => [...prev.slice(-29), data.network_rx_rate]);
-          setTxHistory((prev) => [...prev.slice(-29), data.network_tx_rate]);
-          setBlockHistory((prev) => [...prev.slice(-29), data.block_read_rate + data.block_write_rate]);
+          const timeLabel = new Date(data.timestamp || Date.now()).toLocaleTimeString([], {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+
+          const point: MetricPoint = {
+            time: timeLabel,
+            cpu: Math.round(data.cpu_percent * 10) / 10,
+            memoryMB: Math.round((data.memory_usage / (1024 * 1024)) * 10) / 10,
+            rxKB: Math.round((data.network_rx_rate / 1024) * 10) / 10,
+            txKB: Math.round((data.network_tx_rate / 1024) * 10) / 10,
+            blockReadKB: Math.round((data.block_read_rate / 1024) * 10) / 10,
+            blockWriteKB: Math.round((data.block_write_rate / 1024) * 10) / 10,
+          };
+
+          setHistory((prev) => [...prev.slice(-29), point]);
         } catch (e) {
           console.warn('[Stats WS] Parse error:', e);
         }
@@ -181,9 +188,13 @@ export function ContainerStatsModal({
     setReconnectKey((prev) => prev + 1);
   };
 
+  const memoryLimitMB = currentStats?.memory_limit
+    ? Math.round((currentStats.memory_limit / (1024 * 1024)) * 10) / 10
+    : 1000;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0 flex flex-col bg-[#09090b] dark:bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
+      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 flex flex-col bg-[#09090b] dark:bg-[#09090b] border-zinc-800 shadow-2xl rounded-2xl overflow-hidden">
         {/* Top Header */}
         <DialogHeader className="px-5 py-3 border-b border-zinc-800 bg-[#0d0d11] flex flex-row items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -204,12 +215,12 @@ export function ContainerStatsModal({
                 </Badge>
                 {currentStats && (
                   <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
-                    {currentStats.online_cpus} CPU{currentStats.online_cpus > 1 ? 's' : ''} • {currentStats.pids_count} PIDs
+                    {currentStats.online_cpus} Core{currentStats.online_cpus > 1 ? 's' : ''} • {currentStats.pids_count} PIDs
                   </span>
                 )}
               </div>
               <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                Real-Time Container Telemetry & Resource Profiler (1s interval)
+                Real-Time Container Telemetry & Resource Profiler (Recharts • 1s stream)
               </p>
             </div>
           </div>
@@ -242,32 +253,64 @@ export function ContainerStatsModal({
         {/* Dashboard Content Container */}
         <div ref={setMountedElement} className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#09090b]">
           {/* Top Row: CPU & RAM */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. CPU Usage Card */}
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <div className="w-6 h-6 rounded bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
                     <IconCpu className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-xs font-semibold text-zinc-200">CPU Usage</span>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-200 block">CPU Utilization</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">Last 30 seconds trend</span>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-lg font-mono font-bold text-blue-400">
+                  <span className="text-2xl font-mono font-bold text-sky-400">
                     {currentStats ? `${currentStats.cpu_percent.toFixed(1)}%` : '--'}
                   </span>
                 </div>
               </div>
 
-              {/* Sparkline Graph */}
-              <div className="bg-zinc-900/40 rounded-lg p-2 border border-zinc-900">
-                <Sparkline data={cpuHistory} color="#38bdf8" gradientId="cpuGrad" maxVal={100} height={52} />
+              {/* Recharts Area Chart */}
+              <div className="h-36 w-full bg-zinc-900/30 rounded-lg p-2 border border-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="time" hide />
+                    <YAxis
+                      domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.1))]}
+                      unit="%"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<CustomChartTooltip unit="%" />} />
+                    <Area
+                      type="monotone"
+                      name="CPU"
+                      dataKey="cpu"
+                      stroke="#38bdf8"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#cpuGradient)"
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
 
               {/* Per-Core Breakdown */}
               {currentStats?.per_cpu_usage && currentStats.per_cpu_usage.length > 0 && (
                 <div className="space-y-1.5 pt-1 border-t border-zinc-900">
-                  <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-400">
+                  <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-400 block">
                     Per-Core Distribution ({currentStats.per_cpu_usage.length} Cores)
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -275,8 +318,8 @@ export function ContainerStatsModal({
                       <div key={idx} className="bg-zinc-900/80 border border-zinc-800/60 rounded px-2 py-1 flex items-center justify-between text-[10px] font-mono">
                         <span className="text-zinc-400">C{idx}</span>
                         <div className="flex items-center gap-1.5">
-                          <div className="w-10 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, corePct)}%` }} />
+                          <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-sky-500 rounded-full" style={{ width: `${Math.min(100, corePct)}%` }} />
                           </div>
                           <span className="text-zinc-200">{corePct.toFixed(0)}%</span>
                         </div>
@@ -294,33 +337,72 @@ export function ContainerStatsModal({
                   <div className="w-6 h-6 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                     <IconServer className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-xs font-semibold text-zinc-200">Memory Usage</span>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-200 block">Memory Allocation</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      {currentStats?.memory_limit ? `Limit: ${formatBytes(currentStats.memory_limit)}` : 'Active memory'}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-right flex items-baseline gap-1.5">
-                  <span className="text-lg font-mono font-bold text-emerald-400">
+                  <span className="text-2xl font-mono font-bold text-emerald-400">
                     {currentStats ? formatBytes(currentStats.memory_usage) : '--'}
                   </span>
                   {currentStats?.memory_limit ? (
                     <span className="text-[11px] font-mono text-zinc-400">
-                      / {formatBytes(currentStats.memory_limit)}
+                      ({currentStats.memory_percent.toFixed(1)}%)
                     </span>
                   ) : null}
                 </div>
               </div>
 
+              {/* Recharts Area Chart */}
+              <div className="h-36 w-full bg-zinc-900/30 rounded-lg p-2 border border-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="memGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="time" hide />
+                    <YAxis
+                      domain={[0, (dataMax: number) => Math.max(memoryLimitMB * 0.2, Math.ceil(dataMax * 1.2))]}
+                      unit="MB"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip content={<CustomChartTooltip unit="MB" />} />
+                    <Area
+                      type="monotone"
+                      name="Memory"
+                      dataKey="memoryMB"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#memGradient)"
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
               {/* Progress Bar & Details */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 pt-1 border-t border-zinc-900">
                 <div className="flex justify-between text-[11px] font-mono">
                   <span className="text-zinc-400">
-                    Allocation ({currentStats ? `${currentStats.memory_percent.toFixed(1)}%` : '0%'})
+                    Capacity Used: <span className="text-zinc-200">{currentStats ? `${currentStats.memory_percent.toFixed(1)}%` : '0%'}</span>
                   </span>
                   {currentStats && currentStats.memory_cache > 0 && (
                     <span className="text-zinc-400">
-                      Cache: {formatBytes(currentStats.memory_cache)}
+                      Cache: <span className="text-zinc-300">{formatBytes(currentStats.memory_cache)}</span>
                     </span>
                   )}
                 </div>
-                <div className="w-full h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
+                <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out bg-emerald-500"
                     style={{
@@ -335,22 +417,11 @@ export function ContainerStatsModal({
                   />
                 </div>
               </div>
-
-              {/* Sparkline Graph */}
-              <div className="bg-zinc-900/40 rounded-lg p-2 border border-zinc-900">
-                <Sparkline
-                  data={memHistory}
-                  color="#34d399"
-                  gradientId="memGrad"
-                  maxVal={currentStats?.memory_limit || undefined}
-                  height={52}
-                />
-              </div>
             </div>
           </div>
 
           {/* Bottom Row: Network I/O & Block I/O */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 3. Network I/O Card */}
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -358,84 +429,147 @@ export function ContainerStatsModal({
                   <div className="w-6 h-6 rounded bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
                     <IconArrowsExchange className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-xs font-semibold text-zinc-200">Network Traffic</span>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-200 block">Network Traffic</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">Download vs Upload Throughput</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="text-emerald-400">
+                  <span className="text-emerald-400 font-semibold">
                     ↓ {currentStats ? formatRate(currentStats.network_rx_rate) : '--'}
                   </span>
-                  <span className="text-blue-400">
+                  <span className="text-blue-400 font-semibold">
                     ↑ {currentStats ? formatRate(currentStats.network_tx_rate) : '--'}
                   </span>
                 </div>
               </div>
 
-              {/* Dual Sparklines */}
-              <div className="bg-zinc-900/40 rounded-lg p-2 border border-zinc-900 space-y-2">
-                <div>
-                  <div className="flex justify-between text-[10px] font-mono text-zinc-400 mb-0.5">
-                    <span className="text-emerald-400">Inbound (Rx)</span>
-                    <span>{currentStats ? formatRate(currentStats.network_rx_rate) : '--'}</span>
-                  </div>
-                  <Sparkline data={rxHistory} color="#10b981" gradientId="rxGrad" height={36} />
-                </div>
-                <div className="border-t border-zinc-900/80 pt-1.5">
-                  <div className="flex justify-between text-[10px] font-mono text-zinc-400 mb-0.5">
-                    <span className="text-blue-400">Outbound (Tx)</span>
-                    <span>{currentStats ? formatRate(currentStats.network_tx_rate) : '--'}</span>
-                  </div>
-                  <Sparkline data={txHistory} color="#3b82f6" gradientId="txGrad" height={36} />
-                </div>
+              {/* Recharts Dual Area Chart */}
+              <div className="h-36 w-full bg-zinc-900/30 rounded-lg p-2 border border-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="rxGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                      </linearGradient>
+                      <linearGradient id="txGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="time" hide />
+                    <YAxis unit="K" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomChartTooltip unit="KB/s" />} />
+                    <Area
+                      type="monotone"
+                      name="Inbound (Rx)"
+                      dataKey="rxKB"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#rxGradient)"
+                      isAnimationActive={false}
+                    />
+                    <Area
+                      type="monotone"
+                      name="Outbound (Tx)"
+                      dataKey="txKB"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#txGradient)"
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-900 text-[11px] font-mono">
                 <div className="bg-zinc-900/60 rounded px-2.5 py-1.5 border border-zinc-800/60">
                   <span className="text-zinc-400 block text-[10px]">Total Inbound</span>
-                  <span className="text-zinc-200 font-semibold">{currentStats ? formatBytes(currentStats.network_rx_bytes) : '0 B'}</span>
+                  <span className="text-emerald-400 font-semibold">{currentStats ? formatBytes(currentStats.network_rx_bytes) : '0 B'}</span>
                 </div>
                 <div className="bg-zinc-900/60 rounded px-2.5 py-1.5 border border-zinc-800/60">
                   <span className="text-zinc-400 block text-[10px]">Total Outbound</span>
-                  <span className="text-zinc-200 font-semibold">{currentStats ? formatBytes(currentStats.network_tx_bytes) : '0 B'}</span>
+                  <span className="text-blue-400 font-semibold">{currentStats ? formatBytes(currentStats.network_tx_bytes) : '0 B'}</span>
                 </div>
               </div>
             </div>
 
-            {/* 4. Block I/O (Storage Disk) Card */}
+            {/* 4. Block I/O Card */}
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
                     <IconDatabase className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-xs font-semibold text-zinc-200">Disk Block I/O</span>
+                  <div>
+                    <span className="text-xs font-semibold text-zinc-200 block">Disk Block I/O</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">Storage Read & Write Activity</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="text-amber-400">
+                  <span className="text-amber-400 font-semibold">
                     R: {currentStats ? formatRate(currentStats.block_read_rate) : '--'}
                   </span>
-                  <span className="text-orange-400">
+                  <span className="text-orange-400 font-semibold">
                     W: {currentStats ? formatRate(currentStats.block_write_rate) : '--'}
                   </span>
                 </div>
               </div>
 
-              {/* Sparkline */}
-              <div className="bg-zinc-900/40 rounded-lg p-2 border border-zinc-900 space-y-1">
-                <div className="flex justify-between text-[10px] font-mono text-zinc-400">
-                  <span>I/O Throughput</span>
-                  <span>Read + Write</span>
-                </div>
-                <Sparkline data={blockHistory} color="#f59e0b" gradientId="blockGrad" height={44} />
+              {/* Recharts Area Chart */}
+              <div className="h-36 w-full bg-zinc-900/30 rounded-lg p-2 border border-zinc-900">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="readGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                      </linearGradient>
+                      <linearGradient id="writeGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} opacity={0.5} />
+                    <XAxis dataKey="time" hide />
+                    <YAxis unit="K" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomChartTooltip unit="KB/s" />} />
+                    <Area
+                      type="monotone"
+                      name="Disk Read"
+                      dataKey="blockReadKB"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#readGradient)"
+                      isAnimationActive={false}
+                    />
+                    <Area
+                      type="monotone"
+                      name="Disk Write"
+                      dataKey="blockWriteKB"
+                      stroke="#f97316"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#writeGradient)"
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-900 text-[11px] font-mono">
                 <div className="bg-zinc-900/60 rounded px-2.5 py-1.5 border border-zinc-800/60">
                   <span className="text-zinc-400 block text-[10px]">Total Read</span>
-                  <span className="text-zinc-200 font-semibold">{currentStats ? formatBytes(currentStats.block_read_bytes) : '0 B'}</span>
+                  <span className="text-amber-400 font-semibold">{currentStats ? formatBytes(currentStats.block_read_bytes) : '0 B'}</span>
                 </div>
                 <div className="bg-zinc-900/60 rounded px-2.5 py-1.5 border border-zinc-800/60">
                   <span className="text-zinc-400 block text-[10px]">Total Write</span>
-                  <span className="text-zinc-200 font-semibold">{currentStats ? formatBytes(currentStats.block_write_bytes) : '0 B'}</span>
+                  <span className="text-orange-400 font-semibold">{currentStats ? formatBytes(currentStats.block_write_bytes) : '0 B'}</span>
                 </div>
               </div>
             </div>
