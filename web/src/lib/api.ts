@@ -54,4 +54,14 @@ export const api = {
 
   // Nodes
   getNodes: () => fetch(`${API_BASE}/nodes`).then(handleResponse<Node[]>),
+
+  // System
+  getSystemDiskUsage: () =>
+    fetch(`${API_BASE}/system/df`).then(handleResponse<import('../types').SystemDiskUsage>),
+  pruneSystem: (options?: import('../types').PruneOptions) =>
+    fetch(`${API_BASE}/system/prune`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options || {}),
+    }).then(handleResponse<import('../types').PruneResult>),
 };

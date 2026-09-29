@@ -26,12 +26,14 @@ import { cn } from '../../lib/utils';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { ContainerStatsModal } from '../containers/container-stats-modal';
+import { SystemPruneModal } from '../system/system-prune-modal';
 
 export function ContainersView() {
   const { data: containers = [], isLoading } = useContainers();
   const actionMutation = useContainerAction();
   const [filterState, setFilterState] = useState<'all' | 'running' | 'stopped'>('all');
   const [search, setSearch] = useState('');
+  const [isPruneOpen, setIsPruneOpen] = useState(false);
   const [terminalContainer, setTerminalContainer] = useState<{ id: string; name: string } | null>(null);
   const [logsContainer, setLogsContainer] = useState<{ id: string; name: string } | null>(null);
   const [statsContainer, setStatsContainer] = useState<{ id: string; name: string } | null>(null);
@@ -103,14 +105,27 @@ export function ContainersView() {
           </button>
         </div>
 
-        <div className="w-full sm:w-64">
-          <input
-            type="text"
-            placeholder="Filter containers..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 px-3 bg-white dark:bg-[#0A0A0C] border border-zinc-200 dark:border-[#272730] rounded-lg text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 shadow-sm dark:shadow-none transition-colors"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Filter containers..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-8 px-3 bg-white dark:bg-[#0A0A0C] border border-zinc-200 dark:border-[#272730] rounded-lg text-xs text-zinc-900 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-500 shadow-sm dark:shadow-none transition-colors"
+            />
+          </div>
+
+          <Button
+            variant="surface"
+            size="sm"
+            onClick={() => setIsPruneOpen(true)}
+            className="h-8 px-2.5 text-xs gap-1.5 shrink-0 text-zinc-700 dark:text-zinc-300 hover:text-amber-600 dark:hover:text-amber-400"
+            title="Clean stopped containers and unused Docker resources"
+          >
+            <IconTrash className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">Prune</span>
+          </Button>
         </div>
       </div>
 
@@ -371,6 +386,12 @@ export function ContainersView() {
           onClose={() => setStatsContainer(null)}
         />
       )}
+
+      {/* System Prune Modal */}
+      <SystemPruneModal
+        isOpen={isPruneOpen}
+        onClose={() => setIsPruneOpen(false)}
+      />
     </div>
   );
 }

@@ -92,3 +92,36 @@ export interface ContainerStatsData {
   block_write_rate: number;
   pids_count: number;
 }
+
+export interface DiskUsageCategory {
+  total_count: number;
+  active_count: number;
+  total_size: number;
+  reclaimable: number;
+}
+
+export interface SystemDiskUsage {
+  images: DiskUsageCategory;
+  containers: DiskUsageCategory;
+  volumes: DiskUsageCategory;
+  build_cache: DiskUsageCategory;
+  total_size: number;
+  total_reclaimable: number;
+}
+
+export interface PruneOptions {
+  containers?: boolean;
+  images?: boolean;
+  volumes?: boolean;
+  networks?: boolean;
+  build_cache?: boolean;
+}
+
+export interface PruneResult {
+  containers_deleted: number;
+  images_deleted: number;
+  volumes_deleted: number;
+  networks_deleted: number;
+  build_cache_deleted: number;
+  space_reclaimed: number;
+}

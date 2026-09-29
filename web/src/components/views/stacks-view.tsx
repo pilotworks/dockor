@@ -33,6 +33,7 @@ import { Card } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 import { ComposeEditor } from '../editor/compose-editor';
+import { CreateStackModal } from '../stacks/create-stack-modal';
 
 export function StacksView() {
   const { data: stacks = [], isLoading } = useStacks();
@@ -45,6 +46,7 @@ export function StacksView() {
   const updateMutation = useUpdateStack();
   const navigate = useNavigate();
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editStackModal, setEditStackModal] = useState<{
     id: string;
     name: string;
@@ -152,15 +154,27 @@ export function StacksView() {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => navigate('/templates')}
-          className="gap-1.5"
-        >
-          <IconPlus className="w-3.5 h-3.5" />
-          Deploy New Stack
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="surface"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-1.5"
+          >
+            <IconCode className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+            Custom Compose
+          </Button>
+
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => navigate('/templates')}
+            className="gap-1.5"
+          >
+            <IconPlus className="w-3.5 h-3.5" />
+            From Catalog
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -174,17 +188,28 @@ export function StacksView() {
           <IconStack2 className="w-10 h-10 text-zinc-400 dark:text-zinc-600 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-300">No stacks deployed yet</h3>
           <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-            Choose an application from the Template Catalog or write a custom Docker Compose definition.
+            Write a custom Docker Compose definition or deploy verified applications from the App Catalog.
           </p>
-          <Button
-            size="sm"
-            variant="surface"
-            onClick={() => navigate('/templates')}
-            className="mt-4 gap-1.5"
-          >
-            <IconPlus className="w-3.5 h-3.5" />
-            Browse Template Catalog
-          </Button>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Button
+              size="sm"
+              variant="surface"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="gap-1.5"
+            >
+              <IconCode className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+              Write Custom Compose
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => navigate('/templates')}
+              className="gap-1.5"
+            >
+              <IconPlus className="w-3.5 h-3.5" />
+              Browse App Catalog
+            </Button>
+          </div>
         </div>
       )}
 
@@ -495,6 +520,12 @@ export function StacksView() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Create Custom Stack Modal */}
+      <CreateStackModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 }

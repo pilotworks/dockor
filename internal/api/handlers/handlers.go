@@ -524,3 +524,43 @@ func (h *APIHandler) ListNodes(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, nodes)
 }
+
+// System Handlers
+func (h *APIHandler) GetDiskUsage(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+	usage, err := h.dockerSvc.GetDiskUsage(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to get disk usage: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, usage)
+}
+
+func (h *APIHandler) PruneSystem(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+
+	opts := service.PruneOptions{
+		Containers: true,
+		Images:     true,
+		Volumes:    false,
+		Networks:   true,
+		BuildCache: true,
+	}
+
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&opts)
+	}
+
+	result, err := h.dockerSvc.Prune(r.Context(), opts)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Prune failed: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}

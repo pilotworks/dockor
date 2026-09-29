@@ -73,6 +73,12 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", h.ListNodes)
 		})
+
+		// System
+		r.Route("/system", func(r chi.Router) {
+			r.Get("/df", h.GetDiskUsage)
+			r.Post("/prune", h.PruneSystem)
+		})
 	})
 
 	// Dedicated /ws route for WebSockets

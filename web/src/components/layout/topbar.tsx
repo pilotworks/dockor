@@ -1,10 +1,12 @@
-import { IconRefresh, IconSearch, IconPlus, IconSun, IconMoon } from '@tabler/icons-react';
+import { useState } from 'react';
+import { IconRefresh, IconSearch, IconPlus, IconSun, IconMoon, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
 import { useTemplateStore } from '../../stores/use-template-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
+import { SystemPruneModal } from '../system/system-prune-modal';
 
 export function Topbar() {
   const { theme, toggleTheme } = useAppStore();
@@ -12,6 +14,7 @@ export function Topbar() {
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useTemplateStore();
   const queryClient = useQueryClient();
+  const [isPruneOpen, setIsPruneOpen] = useState(false);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
@@ -98,6 +101,17 @@ export function Topbar() {
           <IconRefresh className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
         </Button>
 
+        {/* Docker Prune / Clean System Button */}
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => setIsPruneOpen(true)}
+          title="Docker System Prune & Cleanup"
+          className="border-zinc-200 dark:border-[#272730] hover:border-amber-400 dark:hover:border-amber-500/60"
+        >
+          <IconTrash className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 hover:text-amber-500" />
+        </Button>
+
         {/* Quick Launch Custom Stack Button */}
         <Button
           variant="primary"
@@ -109,6 +123,9 @@ export function Topbar() {
           Deploy App
         </Button>
       </div>
+
+      {/* Global Docker System Prune Modal */}
+      <SystemPruneModal isOpen={isPruneOpen} onClose={() => setIsPruneOpen(false)} />
     </header>
   );
 }

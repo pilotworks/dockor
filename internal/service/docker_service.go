@@ -216,3 +216,128 @@ func (ds *DockerService) GetContainerStats(ctx context.Context, id string, strea
 	}
 	return res.Body, nil
 }
+
+type DiskUsageCategory struct {
+	TotalCount  int64 `json:"total_count"`
+	ActiveCount int64 `json:"active_count"`
+	TotalSize   int64 `json:"total_size"`
+	Reclaimable int64 `json:"reclaimable"`
+}
+
+type SystemDiskUsage struct {
+	Images           DiskUsageCategory `json:"images"`
+	Containers       DiskUsageCategory `json:"containers"`
+	Volumes          DiskUsageCategory `json:"volumes"`
+	BuildCache       DiskUsageCategory `json:"build_cache"`
+	TotalSize        int64             `json:"total_size"`
+	TotalReclaimable int64             `json:"total_reclaimable"`
+}
+
+type PruneOptions struct {
+	Containers bool `json:"containers"`
+	Images     bool `json:"images"`
+	Volumes    bool `json:"volumes"`
+	Networks   bool `json:"networks"`
+	BuildCache bool `json:"build_cache"`
+}
+
+type PruneResult struct {
+	ContainersDeleted int64 `json:"containers_deleted"`
+	ImagesDeleted     int64 `json:"images_deleted"`
+	VolumesDeleted    int64 `json:"volumes_deleted"`
+	NetworksDeleted   int64 `json:"networks_deleted"`
+	BuildCacheDeleted int64 `json:"build_cache_deleted"`
+	SpaceReclaimed    int64 `json:"space_reclaimed"`
+}
+
+func (ds *DockerService) GetDiskUsage(ctx context.Context) (*SystemDiskUsage, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.DiskUsage(ctx, client.DiskUsageOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	usage := &SystemDiskUsage{
+		Images: DiskUsageCategory{
+			TotalCount:  res.Images.TotalCount,
+			ActiveCount: res.Images.ActiveCount,
+			TotalSize:   res.Images.TotalSize,
+			Reclaimable: res.Images.Reclaimable,
+		},
+		Containers: DiskUsageCategory{
+			TotalCount:  res.Containers.TotalCount,
+			ActiveCount: res.Containers.ActiveCount,
+			TotalSize:   res.Containers.TotalSize,
+			Reclaimable: res.Containers.Reclaimable,
+		},
+		Volumes: DiskUsageCategory{
+			TotalCount:  res.Volumes.TotalCount,
+			ActiveCount: res.Volumes.ActiveCount,
+			TotalSize:   res.Volumes.TotalSize,
+			Reclaimable: res.Volumes.Reclaimable,
+		},
+		BuildCache: DiskUsageCategory{
+			TotalCount:  res.BuildCache.TotalCount,
+			ActiveCount: res.BuildCache.ActiveCount,
+			TotalSize:   res.BuildCache.TotalSize,
+			Reclaimable: res.BuildCache.Reclaimable,
+		},
+	}
+
+	usage.TotalSize = usage.Images.TotalSize + usage.Containers.TotalSize + usage.Volumes.TotalSize + usage.BuildCache.TotalSize
+	usage.TotalReclaimable = usage.Images.Reclaimable + usage.Containers.Reclaimable + usage.Volumes.Reclaimable + usage.BuildCache.Reclaimable
+
+	return usage, nil
+}
+
+func (ds *DockerService) Prune(ctx context.Context, opts PruneOptions) (*PruneResult, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	result := &PruneResult{}
+
+	// 1. Containers
+	if opts.Containers {
+		if cRes, err := ds.cli.ContainerPrune(ctx, client.ContainerPruneOptions{}); err == nil {
+			result.ContainersDeleted = int64(len(cRes.Report.ContainersDeleted))
+			result.SpaceReclaimed += int64(cRes.Report.SpaceReclaimed)
+		}
+	}
+
+	// 2. Images
+	if opts.Images {
+		if iRes, err := ds.cli.ImagePrune(ctx, client.ImagePruneOptions{}); err == nil {
+			result.ImagesDeleted = int64(len(iRes.Report.ImagesDeleted))
+			result.SpaceReclaimed += int64(iRes.Report.SpaceReclaimed)
+		}
+	}
+
+	// 3. Volumes
+	if opts.Volumes {
+		if vRes, err := ds.cli.VolumePrune(ctx, client.VolumePruneOptions{}); err == nil {
+			result.VolumesDeleted = int64(len(vRes.Report.VolumesDeleted))
+			result.SpaceReclaimed += int64(vRes.Report.SpaceReclaimed)
+		}
+	}
+
+	// 4. Networks
+	if opts.Networks {
+		if nRes, err := ds.cli.NetworkPrune(ctx, client.NetworkPruneOptions{}); err == nil {
+			result.NetworksDeleted = int64(len(nRes.Report.NetworksDeleted))
+		}
+	}
+
+	// 5. Build Cache
+	if opts.BuildCache {
+		if bRes, err := ds.cli.BuildCachePrune(ctx, client.BuildCachePruneOptions{All: true}); err == nil {
+			result.BuildCacheDeleted = int64(len(bRes.Report.CachesDeleted))
+			result.SpaceReclaimed += int64(bRes.Report.SpaceReclaimed)
+		}
+	}
+
+	return result, nil
+}
