@@ -48,6 +48,7 @@ export function ContainerTerminalModal({
 
     // 1. Initialize xterm.js instance
     const term = new Terminal({
+      convertEol: true,
       cursorBlink: true,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       fontSize: 13,

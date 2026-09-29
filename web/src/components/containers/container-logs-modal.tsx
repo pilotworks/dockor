@@ -54,6 +54,7 @@ export function ContainerLogsModal({
 
     // Initialize xterm.js instance for logs viewer
     const term = new Terminal({
+      convertEol: true,
       cursorBlink: false,
       disableStdin: true,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
