@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   dockor:
     build:
@@ -9,15 +7,27 @@ services:
     container_name: dockor
     restart: unless-stopped
     ports:
+      # Single-port architecture: Web Dashboard, REST API, WebSocket TTY, and SSE Event Stream
       - "9000:9000"
     environment:
       - DOCKOR_PORT=9000
       - DOCKOR_DATA_DIR=/app/data
       - DOCKOR_TEMPLATES_DIR=/app/templates
+      - DOCKOR_WEB_DIR=/app/web/dist
       - DOCKER_HOST=unix:///var/run/docker.sock
+      # Optional: set a custom 256-bit encryption key (hex). If unset, Dockor auto-generates
+      # and persists a 0600-permission key in /app/data/dockor.secret.key
+      # - DOCKOR_SECRET_KEY=
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - dockor_data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
 volumes:
   dockor_data:
+    name: dockor_data
