@@ -1,10 +1,11 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { TemplateQueryParams } from '../types';
 
-export function useTemplates() {
+export function useTemplates(params?: TemplateQueryParams) {
   return useQuery({
-    queryKey: ['templates'],
-    queryFn: () => api.getTemplates(),
+    queryKey: ['templates', params],
+    queryFn: () => api.getTemplates(params),
   });
 }
 

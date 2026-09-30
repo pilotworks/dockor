@@ -116,3 +116,44 @@ func TestPortConflictResolution(t *testing.T) {
 
 	fmt.Printf("Resolved conflicting port 8999 -> %d (Warning: %s)\n", resolvedPort, res.Warnings[0])
 }
+
+func TestSearchAndPaginate(t *testing.T) {
+	eng := NewTemplateEngine("../../templates")
+
+	// 1. Test pagination default
+	res, err := eng.SearchAndPaginate("", "", 1, 24)
+	if err != nil {
+		t.Fatalf("SearchAndPaginate failed: %v", err)
+	}
+
+	if res.Page != 1 || res.Limit != 24 {
+		t.Errorf("expected page 1 limit 24, got page %d limit %d", res.Page, res.Limit)
+	}
+	if len(res.Categories) == 0 {
+		t.Errorf("expected categories list, got none")
+	}
+	if res.Categories[0].Name != "All" {
+		t.Errorf("expected first category to be 'All', got %s", res.Categories[0].Name)
+	}
+
+	// 2. Test search filter
+	resSearch, err := eng.SearchAndPaginate("", "postgres", 1, 10)
+	if err != nil {
+		t.Fatalf("SearchAndPaginate with search failed: %v", err)
+	}
+	for _, item := range resSearch.Items {
+		match := item.Metadata.ID == "postgres" || item.Metadata.Name == "PostgreSQL"
+		if !match {
+			t.Errorf("unexpected item in postgres search: %s", item.Metadata.Name)
+		}
+	}
+
+	// 3. Test O(1) GetTemplateByID
+	tmpl, err := eng.GetTemplateByID("postgres")
+	if err != nil {
+		t.Fatalf("GetTemplateByID postgres failed: %v", err)
+	}
+	if tmpl.Metadata.ID != "postgres" {
+		t.Errorf("expected postgres template ID, got %s", tmpl.Metadata.ID)
+	}
+}

@@ -142,11 +142,12 @@ func main() {
 	router := api.NewRouter(handler, cfg.WebDir)
 
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,  // Protect against Slowloris attacks
+		ReadTimeout:       30 * time.Second, // Allow uploads/requests to complete
+		WriteTimeout:      0,                // 0 disables global write deadline, required for SSE, WebSockets, and large downloads
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Graceful shutdown handling

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -78,12 +79,32 @@ func (h *APIHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // Template Handlers
 func (h *APIHandler) ListTemplates(w http.ResponseWriter, r *http.Request) {
-	templates, err := h.templateEng.LoadTemplates()
+	// If all=true, return raw slice for CLI or backwards compatibility
+	if r.URL.Query().Get("all") == "true" {
+		templates, err := h.templateEng.LoadTemplates()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if templates == nil {
+			templates = []models.Template{}
+		}
+		writeJSON(w, http.StatusOK, templates)
+		return
+	}
+
+	category := r.URL.Query().Get("category")
+	search := r.URL.Query().Get("search")
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	resp, err := h.templateEng.SearchAndPaginate(category, search, page, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, templates)
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *APIHandler) GetTemplate(w http.ResponseWriter, r *http.Request) {

@@ -39,12 +39,13 @@ export function Sidebar() {
   const { data: nodes = [] } = useNodes();
   const { data: containers = [] } = useContainers();
   const { data: stacks = [] } = useStacks();
-  const { data: templates = [] } = useTemplates();
+  const { data: templatesData } = useTemplates({ limit: 1 });
   const { data: networks = [] } = useNetworks();
   const { data: volumes = [] } = useVolumes();
   const { data: images = [] } = useImages();
   const { data: registries = [] } = useRegistries();
 
+  const totalTemplates = templatesData?.total ?? 0;
   const runningContainers = containers.filter((c) => c.state === 'running').length;
   const isDockerConnected = health?.docker === 'connected';
 
@@ -58,7 +59,7 @@ export function Sidebar() {
       path: '/templates',
       label: 'App Catalog',
       icon: IconTemplate,
-      badge: templates.length > 0 ? `${templates.length}` : undefined,
+      badge: totalTemplates > 0 ? `${totalTemplates}` : undefined,
     },
     {
       path: '/stacks',

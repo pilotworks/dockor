@@ -34,6 +34,8 @@ export function TemplateCard({ template }: TemplateCardProps) {
                 <img
                   src={metadata.icon}
                   alt={metadata.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-contain"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';

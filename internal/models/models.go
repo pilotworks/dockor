@@ -144,6 +144,20 @@ type Template struct {
 	Path        string              `json:"path,omitempty"`
 }
 
+type TemplateCategoryCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type TemplateListResponse struct {
+	Items      []Template              `json:"items"`
+	Total      int                     `json:"total"`
+	Page       int                     `json:"page"`
+	Limit      int                     `json:"limit"`
+	TotalPages int                     `json:"total_pages"`
+	Categories []TemplateCategoryCount `json:"categories"`
+}
+
 type ContainerPort struct {
 	IP          string `json:"ip,omitempty"`
 	PrivatePort uint16 `json:"private_port"`

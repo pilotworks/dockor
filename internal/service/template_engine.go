@@ -11,8 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,21 +22,39 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	reRandomString = regexp.MustCompile(`random_string\((\d+)(?:,\s*charset=(\w+))?\)`)
+	reHex          = regexp.MustCompile(`hex\((\d+)\)`)
+	reSlug         = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+)
+
 type TemplateEngine struct {
 	templatesDir string
+	mu           sync.RWMutex
+	cached       []models.Template
+	byID         map[string]models.Template
+	categories   []models.TemplateCategoryCount
+	initialized  bool
 }
 
 func NewTemplateEngine(templatesDir string) *TemplateEngine {
 	return &TemplateEngine{
 		templatesDir: templatesDir,
+		byID:         make(map[string]models.Template),
 	}
 }
 
-// LoadTemplates scans the templates directory and loads all templates
-func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
+// ReloadTemplates re-scans the templates directory and updates in-memory cache
+func (te *TemplateEngine) ReloadTemplates() ([]models.Template, error) {
 	var templates []models.Template
 
 	if _, err := os.Stat(te.templatesDir); os.IsNotExist(err) {
+		te.mu.Lock()
+		te.cached = []models.Template{}
+		te.byID = make(map[string]models.Template)
+		te.categories = []models.TemplateCategoryCount{{Name: "All", Count: 0}}
+		te.initialized = true
+		te.mu.Unlock()
 		return templates, nil
 	}
 
@@ -42,6 +62,9 @@ func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read templates directory: %w", err)
 	}
+
+	byID := make(map[string]models.Template)
+	catCounts := make(map[string]int)
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -56,7 +79,7 @@ func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
 			// Check if standard docker-compose.yml exists without dockor.yaml
 			if _, err := os.Stat(composePath); err == nil {
 				// Synthesize minimal template
-				templates = append(templates, models.Template{
+				tmpl := models.Template{
 					Metadata: models.TemplateMetadata{
 						ID:          entry.Name(),
 						Name:        strings.Title(entry.Name()),
@@ -65,7 +88,10 @@ func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
 						Category:    "General",
 					},
 					Path: tmplPath,
-				})
+				}
+				templates = append(templates, tmpl)
+				byID[tmpl.Metadata.ID] = tmpl
+				catCounts["General"]++
 			}
 			continue
 		}
@@ -92,26 +118,167 @@ func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
 			tmpl.Metadata.ID = entry.Name()
 		}
 
+		cat := strings.TrimSpace(tmpl.Metadata.Category)
+		if cat == "" {
+			cat = "General"
+			tmpl.Metadata.Category = cat
+		}
+
 		templates = append(templates, tmpl)
+		byID[tmpl.Metadata.ID] = tmpl
+		catCounts[cat]++
 	}
+
+	// Sort templates alphabetically by name
+	sort.Slice(templates, func(i, j int) bool {
+		return strings.ToLower(templates[i].Metadata.Name) < strings.ToLower(templates[j].Metadata.Name)
+	})
+
+	// Pre-build categories count list with "All" first
+	var categories []models.TemplateCategoryCount
+	categories = append(categories, models.TemplateCategoryCount{
+		Name:  "All",
+		Count: len(templates),
+	})
+
+	var catNames []string
+	for name := range catCounts {
+		catNames = append(catNames, name)
+	}
+	sort.Strings(catNames)
+	for _, name := range catNames {
+		categories = append(categories, models.TemplateCategoryCount{
+			Name:  name,
+			Count: catCounts[name],
+		})
+	}
+
+	te.mu.Lock()
+	te.cached = templates
+	te.byID = byID
+	te.categories = categories
+	te.initialized = true
+	te.mu.Unlock()
 
 	return templates, nil
 }
 
-// GetTemplateByID finds a single template by ID
-func (te *TemplateEngine) GetTemplateByID(id string) (*models.Template, error) {
-	templates, err := te.LoadTemplates()
-	if err != nil {
-		return nil, err
+// LoadTemplates returns all templates from in-memory cache, or loads from disk if not yet initialized
+func (te *TemplateEngine) LoadTemplates() ([]models.Template, error) {
+	te.mu.RLock()
+	if te.initialized {
+		res := make([]models.Template, len(te.cached))
+		copy(res, te.cached)
+		te.mu.RUnlock()
+		return res, nil
 	}
+	te.mu.RUnlock()
 
-	for _, t := range templates {
-		if t.Metadata.ID == id {
-			return &t, nil
+	return te.ReloadTemplates()
+}
+
+// GetTemplateByID finds a single template by ID in O(1) time using in-memory cache
+func (te *TemplateEngine) GetTemplateByID(id string) (*models.Template, error) {
+	te.mu.RLock()
+	if !te.initialized {
+		te.mu.RUnlock()
+		if _, err := te.ReloadTemplates(); err != nil {
+			return nil, err
 		}
+		te.mu.RLock()
+	}
+	defer te.mu.RUnlock()
+
+	if tmpl, ok := te.byID[id]; ok {
+		cpy := tmpl
+		return &cpy, nil
 	}
 
 	return nil, fmt.Errorf("template with id '%s' not found", id)
+}
+
+// SearchAndPaginate performs in-memory filtering, searching, and pagination in O(1) / O(N) memory speed
+func (te *TemplateEngine) SearchAndPaginate(category, search string, page, limit int) (*models.TemplateListResponse, error) {
+	te.mu.RLock()
+	if !te.initialized {
+		te.mu.RUnlock()
+		if _, err := te.ReloadTemplates(); err != nil {
+			return nil, err
+		}
+		te.mu.RLock()
+	}
+	defer te.mu.RUnlock()
+
+	if limit <= 0 {
+		limit = 24
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	search = strings.TrimSpace(strings.ToLower(search))
+	category = strings.TrimSpace(category)
+	if category == "All" {
+		category = ""
+	}
+
+	var filtered []models.Template
+	for _, t := range te.cached {
+		if category != "" && !strings.EqualFold(t.Metadata.Category, category) {
+			continue
+		}
+		if search != "" {
+			nameMatch := strings.Contains(strings.ToLower(t.Metadata.Name), search)
+			descMatch := strings.Contains(strings.ToLower(t.Metadata.Description), search)
+			tagMatch := false
+			for _, tag := range t.Metadata.Tags {
+				if strings.Contains(strings.ToLower(tag), search) {
+					tagMatch = true
+					break
+				}
+			}
+			if !nameMatch && !descMatch && !tagMatch {
+				continue
+			}
+		}
+		filtered = append(filtered, t)
+	}
+
+	total := len(filtered)
+	totalPages := (total + limit - 1) / limit
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	startIndex := (page - 1) * limit
+	if startIndex > total {
+		startIndex = total
+	}
+	endIndex := startIndex + limit
+	if endIndex > total {
+		endIndex = total
+	}
+
+	var pagedItems []models.Template
+	if startIndex < total {
+		pagedItems = make([]models.Template, endIndex-startIndex)
+		copy(pagedItems, filtered[startIndex:endIndex])
+	} else {
+		pagedItems = []models.Template{}
+	}
+
+	// Categories count
+	catCopy := make([]models.TemplateCategoryCount, len(te.categories))
+	copy(catCopy, te.categories)
+
+	return &models.TemplateListResponse{
+		Items:      pagedItems,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+		Categories: catCopy,
+	}, nil
 }
 
 type EvaluationResult struct {
@@ -205,8 +372,7 @@ func generateSecret(generator string) (string, error) {
 		return uuid.New().String(), nil
 	}
 
-	re := regexp.MustCompile(`random_string\((\d+)(?:,\s*charset=(\w+))?\)`)
-	matches := re.FindStringSubmatch(generator)
+	matches := reRandomString.FindStringSubmatch(generator)
 	if len(matches) > 1 {
 		length, _ := strconv.Atoi(matches[1])
 		charset := "alphanumeric"
@@ -216,7 +382,6 @@ func generateSecret(generator string) (string, error) {
 		return generateRandomString(length, charset), nil
 	}
 
-	reHex := regexp.MustCompile(`hex\((\d+)\)`)
 	matchesHex := reHex.FindStringSubmatch(generator)
 	if len(matchesHex) > 1 {
 		bytesLen, _ := strconv.Atoi(matchesHex[1])
@@ -249,8 +414,7 @@ func generateRandomString(length int, charsetType string) string {
 func (te *TemplateEngine) SaveCustomTemplate(tmpl *models.Template) error {
 	if tmpl.Metadata.ID == "" {
 		if tmpl.Metadata.Name != "" {
-			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
-			tmpl.Metadata.ID = strings.ToLower(reg.ReplaceAllString(tmpl.Metadata.Name, "-"))
+			tmpl.Metadata.ID = strings.ToLower(reSlug.ReplaceAllString(tmpl.Metadata.Name, "-"))
 		} else {
 			tmpl.Metadata.ID = "tmpl-" + uuid.New().String()[:8]
 		}
@@ -283,6 +447,7 @@ func (te *TemplateEngine) SaveCustomTemplate(tmpl *models.Template) error {
 		return fmt.Errorf("failed to write docker-compose.yml: %w", err)
 	}
 
+	_, _ = te.ReloadTemplates()
 	return nil
 }
 
@@ -336,8 +501,7 @@ func (te *TemplateEngine) ImportCatalogFromURL(urlStr string) (int, error) {
 			if strings.TrimSpace(pt.Title) == "" {
 				continue
 			}
-			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
-			id := strings.ToLower(reg.ReplaceAllString(pt.Title, "-"))
+			id := strings.ToLower(reSlug.ReplaceAllString(pt.Title, "-"))
 			if id == "" {
 				id = "pt-" + uuid.New().String()[:8]
 			}
@@ -390,8 +554,7 @@ func (te *TemplateEngine) ImportCatalogFromURL(urlStr string) (int, error) {
 			if strings.TrimSpace(pt.Title) == "" {
 				continue
 			}
-			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
-			id := strings.ToLower(reg.ReplaceAllString(pt.Title, "-"))
+			id := strings.ToLower(reSlug.ReplaceAllString(pt.Title, "-"))
 			if id == "" {
 				id = "pt-" + uuid.New().String()[:8]
 			}

@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTemplates } from '../../hooks/use-templates';
-import { useTemplateStore } from '../../stores/use-template-store';
 import { TemplateCard } from '../templates/template-card';
 import {
   IconSearch,
@@ -9,6 +8,10 @@ import {
   IconDownload,
   IconPlus,
   IconRefresh,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
 } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
 import { Input } from '../ui/input';
@@ -16,20 +19,64 @@ import { Button } from '../ui/button';
 import { ImportCatalogModal } from '../templates/import-catalog-modal';
 import { CreateTemplateModal } from '../templates/create-template-modal';
 
+function getPageNumbers(current: number, total: number): (number | string)[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (current >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', current - 1, current, current + 1, '...', total];
+}
+
 export function TemplatesView() {
-  const { data: templates = [], isLoading, error, refetch, isFetching } = useTemplates();
-  const { searchQuery, setSearchQuery, selectedCategory, setSelectedCategory } = useTemplateStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const catParam = searchParams.get('category');
-  const activeCategory = catParam || selectedCategory || 'All';
+  const catParam = searchParams.get('category') || 'All';
+  const searchParam = searchParams.get('search') || '';
+  const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+  const pageSize = 24;
 
-  const categories = ['All', ...new Set(templates.map((t) => t.metadata.category).filter(Boolean))];
+  const [searchInput, setSearchInput] = useState(searchParam);
+  const deferredSearch = useDeferredValue(searchInput);
+
+  // Sync deferred search input to URL query params
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (deferredSearch.trim()) {
+          next.set('search', deferredSearch.trim());
+        } else {
+          next.delete('search');
+        }
+        next.delete('page'); // Reset to page 1 on search change
+        return next;
+      },
+      { replace: true }
+    );
+  }, [deferredSearch, setSearchParams]);
+
+  // Server-side paginated & filtered query
+  const { data: templateData, isLoading, error, refetch, isFetching } = useTemplates({
+    page: currentPage,
+    limit: pageSize,
+    category: catParam !== 'All' ? catParam : undefined,
+    search: searchParam || undefined,
+  });
+
+  const templates = templateData?.items || [];
+  const totalItems = templateData?.total || 0;
+  const totalPages = templateData?.total_pages || 1;
+  const categories = templateData?.categories || [{ name: 'All', count: totalItems }];
 
   const handleSelectCategory = (cat: string) => {
-    setSelectedCategory(cat);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -38,20 +85,29 @@ export function TemplatesView() {
         } else {
           next.set('category', cat);
         }
+        next.delete('page'); // Reset to page 1
         return next;
       },
       { replace: true }
     );
   };
 
-  const filtered = templates.filter((t) => {
-    const matchesQuery =
-      t.metadata.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.metadata.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.metadata.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCat = activeCategory === 'All' || t.metadata.category === activeCategory;
-    return matchesQuery && matchesCat;
-  });
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newPage === 1) {
+        next.delete('page');
+      } else {
+        next.set('page', String(newPage));
+      }
+      return next;
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const fromIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const toIndex = Math.min(currentPage * pageSize, totalItems);
 
   return (
     <div className="space-y-6">
@@ -79,8 +135,8 @@ export function TemplatesView() {
               <Input
                 type="text"
                 placeholder="Search templates or tags..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9 pr-4 h-9 rounded-xl"
               />
             </div>
@@ -121,16 +177,12 @@ export function TemplatesView() {
       {/* Category Pills Tab Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-zinc-200 dark:border-[#1F1F24] transition-colors">
         {categories.map((cat) => {
-          const count =
-            cat === 'All'
-              ? templates.length
-              : templates.filter((t) => t.metadata.category === cat).length;
-          const isActive = activeCategory === cat;
+          const isActive = catParam === cat.name;
 
           return (
             <button
-              key={cat}
-              onClick={() => handleSelectCategory(cat)}
+              key={cat.name}
+              onClick={() => handleSelectCategory(cat.name)}
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border cursor-pointer',
                 isActive
@@ -138,7 +190,7 @@ export function TemplatesView() {
                   : 'bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
               )}
             >
-              <span>{cat}</span>
+              <span>{cat.name}</span>
               <span
                 className={cn(
                   'text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors',
@@ -147,7 +199,7 @@ export function TemplatesView() {
                     : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-400'
                 )}
               >
-                {count}
+                {cat.count}
               </span>
             </button>
           );
@@ -168,22 +220,112 @@ export function TemplatesView() {
       )}
 
       {/* Grid of Templates */}
-      {!isLoading && !error && filtered.length > 0 && (
+      {!isLoading && !error && templates.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((t) => (
+          {templates.map((t) => (
             <TemplateCard key={t.metadata.id} template={t} />
           ))}
         </div>
       )}
 
       {/* Empty State */}
-      {!isLoading && !error && filtered.length === 0 && (
+      {!isLoading && !error && templates.length === 0 && (
         <div className="border border-dashed border-zinc-300 dark:border-[#272730] rounded-2xl p-16 text-center bg-white dark:bg-[#0D0D10]/50 transition-colors">
           <IconTemplate className="w-10 h-10 text-zinc-400 dark:text-zinc-600 mx-auto mb-3" />
           <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-300">No matching templates found</h3>
           <p className="text-xs text-zinc-500 mt-1">
             Try adjusting your search keywords or switching category filters.
           </p>
+        </div>
+      )}
+
+      {/* Server-side Pagination Controls */}
+      {!isLoading && !error && totalItems > 0 && (
+        <div className="pt-4 border-t border-zinc-200 dark:border-[#1F1F24] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+          <div>
+            Showing <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fromIndex}</span> to{' '}
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{toIndex}</span> of{' '}
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{totalItems}</span> templates
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage <= 1 || isFetching}
+                className="h-8 w-8 p-0 rounded-lg"
+                title="First page"
+              >
+                <IconChevronsLeft className="w-3.5 h-3.5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1 || isFetching}
+                className="h-8 w-8 p-0 rounded-lg"
+                title="Previous page"
+              >
+                <IconChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+
+              <div className="flex items-center gap-1 mx-1">
+                {getPageNumbers(currentPage, totalPages).map((p, idx) => {
+                  if (typeof p === 'string') {
+                    return (
+                      <span key={`dots-${idx}`} className="px-1 text-zinc-400">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const isActive = p === currentPage;
+                  return (
+                    <Button
+                      key={p}
+                      variant={isActive ? 'primary' : 'outline'}
+                      size="sm"
+                      onClick={() => handlePageChange(p as number)}
+                      disabled={isFetching}
+                      className={cn(
+                        'h-8 min-w-[32px] px-2 rounded-lg text-xs font-mono',
+                        isActive
+                          ? 'bg-blue-600 hover:bg-blue-500 text-white font-semibold'
+                          : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                      )}
+                    >
+                      {p}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || isFetching}
+                className="h-8 w-8 p-0 rounded-lg"
+                title="Next page"
+              >
+                <IconChevronRight className="w-3.5 h-3.5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage >= totalPages || isFetching}
+                className="h-8 w-8 p-0 rounded-lg"
+                title="Last page"
+              >
+                <IconChevronsRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

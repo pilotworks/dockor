@@ -21,6 +21,7 @@ func NewRouter(h *handlers.APIHandler, webDir ...string) http.Handler {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.Compress(5, "application/json", "text/html", "text/css", "application/javascript", "text/plain", "application/xml"))
 
 	// Permissive CORS for development
 	r.Use(cors.Handler(cors.Options{

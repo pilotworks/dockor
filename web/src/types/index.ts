@@ -34,6 +34,27 @@ export interface Template {
   path?: string;
 }
 
+export interface TemplateCategoryCount {
+  name: string;
+  count: number;
+}
+
+export interface TemplateListResponse {
+  items: Template[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  categories: TemplateCategoryCount[];
+}
+
+export interface TemplateQueryParams {
+  page?: number;
+  limit?: number;
+  category?: string;
+  search?: string;
+}
+
 export interface Stack {
   id: string;
   name: string;

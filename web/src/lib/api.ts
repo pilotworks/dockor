@@ -1,5 +1,7 @@
 import {
   Template,
+  TemplateListResponse,
+  TemplateQueryParams,
   Stack,
   Container,
   Node,
@@ -168,7 +170,15 @@ export const api = {
   getHealth: () => fetch(`${API_BASE}/health`).then(handleResponse<{ status: string; docker: string }>),
 
   // Templates
-  getTemplates: () => fetch(`${API_BASE}/templates`).then(handleResponse<Template[]>),
+  getTemplates: (params?: TemplateQueryParams) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.category && params.category !== 'All') searchParams.set('category', params.category);
+    if (params?.search) searchParams.set('search', params.search);
+    const qs = searchParams.toString();
+    return fetch(`${API_BASE}/templates${qs ? `?${qs}` : ''}`).then(handleResponse<TemplateListResponse>);
+  },
   getTemplate: (id: string) => fetch(`${API_BASE}/templates/${id}`).then(handleResponse<Template>),
   previewTemplate: (id: string, variables: Record<string, any>) =>
     fetch(`${API_BASE}/templates/${id}/preview`, {

@@ -942,39 +942,63 @@ func (ds *DockerService) PushImage(ctx context.Context, target string, authHeade
 	return res, nil
 }
 
-// Event Monitoring & History
+// Event Monitoring & History with resilient reconnect loop
 func (ds *DockerService) StartEventMonitoring(ctx context.Context) {
 	if ds.cli == nil {
 		return
 	}
 
 	go func() {
-		res := ds.cli.Events(ctx, client.EventsListOptions{})
+		backoff := 1 * time.Second
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case err := <-res.Err:
-				if err != nil {
+			default:
+			}
+
+			res := ds.cli.Events(ctx, client.EventsListOptions{})
+			connected := true
+
+			for connected {
+				select {
+				case <-ctx.Done():
 					return
+				case err := <-res.Err:
+					if err != nil {
+						connected = false
+					}
+				case msg, ok := <-res.Messages:
+					if !ok {
+						connected = false
+						break
+					}
+					backoff = 1 * time.Second // Reset backoff on successful message
+					name := ""
+					if msg.Actor.Attributes != nil {
+						name = msg.Actor.Attributes["name"]
+					}
+					evt := models.DockerDaemonEvent{
+						Type:       string(msg.Type),
+						Action:     string(msg.Action),
+						ActorID:    msg.Actor.ID,
+						ActorName:  name,
+						Attributes: msg.Actor.Attributes,
+						Timestamp:  msg.Time,
+					}
+					ds.recordEvent(evt)
 				}
-			case msg, ok := <-res.Messages:
-				if !ok {
-					return
+			}
+
+			// Backoff before reconnecting
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+				backoff *= 2
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
 				}
-				name := ""
-				if msg.Actor.Attributes != nil {
-					name = msg.Actor.Attributes["name"]
-				}
-				evt := models.DockerDaemonEvent{
-					Type:       string(msg.Type),
-					Action:     string(msg.Action),
-					ActorID:    msg.Actor.ID,
-					ActorName:  name,
-					Attributes: msg.Actor.Attributes,
-					Timestamp:  msg.Time,
-				}
-				ds.recordEvent(evt)
 			}
 		}
 	}()
