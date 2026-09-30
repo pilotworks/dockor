@@ -183,3 +183,51 @@ type ContainerStatsData struct {
 	BlockWriteRate  float64   `json:"block_write_rate"`
 	PidsCount       uint64    `json:"pids_count"`
 }
+
+type Registry struct {
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	ServerAddress     string    `json:"server_address"`
+	Username          string    `json:"username"`
+	EncryptedPassword string    `json:"-"`
+	HasPassword       bool      `json:"has_password"`
+	IsDefault         bool      `json:"is_default"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type CreateRegistryPayload struct {
+	Name          string `json:"name"`
+	ServerAddress string `json:"server_address"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	IsDefault     bool   `json:"is_default"`
+}
+
+type UpdateRegistryPayload struct {
+	Name          string `json:"name"`
+	ServerAddress string `json:"server_address"`
+	Username      string `json:"username"`
+	Password      string `json:"password,omitempty"`
+	IsDefault     bool   `json:"is_default"`
+}
+
+type FileItem struct {
+	Name       string    `json:"name"`
+	Path       string    `json:"path"`
+	IsDir      bool      `json:"is_dir"`
+	Size       int64     `json:"size"`
+	Mode       string    `json:"mode"`
+	ModTime    time.Time `json:"mod_time"`
+	IsSymlink  bool      `json:"is_symlink"`
+	LinkTarget string    `json:"link_target,omitempty"`
+}
+
+type DockerDaemonEvent struct {
+	Type       string            `json:"type"`
+	Action     string            `json:"action"`
+	ActorID    string            `json:"actor_id"`
+	ActorName  string            `json:"actor_name"`
+	Attributes map[string]string `json:"attributes"`
+	Timestamp  int64             `json:"timestamp"`
+}

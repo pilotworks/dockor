@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { IconRefresh, IconSearch, IconPlus, IconSun, IconMoon, IconTrash } from '@tabler/icons-react';
+import {
+  IconRefresh,
+  IconSearch,
+  IconPlus,
+  IconSun,
+  IconMoon,
+  IconTrash,
+  IconActivity,
+} from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
-import { useTemplateStore } from '../../stores/use-template-store';
+import { useCommandPaletteStore } from '../../stores/use-command-palette';
+import { useEventStore } from '../../stores/use-event-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import { SystemPruneModal } from '../system/system-prune-modal';
 
@@ -13,7 +21,8 @@ export function Topbar() {
   const { theme, toggleTheme } = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const { searchQuery, setSearchQuery } = useTemplateStore();
+  const { open: openPalette } = useCommandPaletteStore();
+  const { toggleDrawer, unreadCount } = useEventStore();
   const queryClient = useQueryClient();
   const [isPruneOpen, setIsPruneOpen] = useState(false);
 
@@ -111,20 +120,38 @@ export function Topbar() {
 
       {/* Global Actions */}
       <div className="flex items-center gap-2.5">
-        {/* Global Quick Filter / Search */}
-        <div className="relative w-64">
-          <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none" />
-          <Input
-            type="text"
-            placeholder="Search resources... (⌘K)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-12 h-8"
-          />
+        {/* Global Quick Filter / Search - triggers Command Palette */}
+        <div
+          onClick={openPalette}
+          className="relative w-64 cursor-pointer group"
+          title="Open Command Palette (⌘K)"
+        >
+          <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors" />
+          <div className="w-full h-8 pl-8 pr-12 text-xs flex items-center text-zinc-400 dark:text-zinc-500 bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#272730] group-hover:border-zinc-300 dark:group-hover:border-zinc-700 rounded-md transition-all select-none">
+            <span>Search or command...</span>
+          </div>
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-400 dark:text-zinc-500 bg-zinc-200/60 dark:bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-700/50 pointer-events-none">
             ⌘K
           </kbd>
         </div>
+
+        {/* Real-time Docker Activity Drawer Button */}
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={toggleDrawer}
+          title="Docker Daemon Live Activity Stream"
+          className="relative border-zinc-200 dark:border-[#272730]"
+        >
+          <IconActivity className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+          {unreadCount > 0 ? (
+            <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 px-0.5 items-center justify-center rounded-full bg-blue-600 text-[9px] font-bold text-white shadow-xs">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          ) : (
+            <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          )}
+        </Button>
 
         {/* Theme Toggle (Light / Dark) */}
         <Button

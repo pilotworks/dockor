@@ -222,3 +222,111 @@ func (r *Repository) ListCatalogs(ctx context.Context) ([]models.Catalog, error)
 	}
 	return catalogs, rows.Err()
 }
+
+// Registries
+func (r *Repository) ListRegistries(ctx context.Context) ([]models.Registry, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT id, name, server_address, username, encrypted_password, is_default, created_at, updated_at FROM registries ORDER BY is_default DESC, name ASC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.Registry
+	for rows.Next() {
+		var reg models.Registry
+		var isDef int
+		err := rows.Scan(&reg.ID, &reg.Name, &reg.ServerAddress, &reg.Username, &reg.EncryptedPassword, &isDef, &reg.CreatedAt, &reg.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		reg.IsDefault = isDef == 1
+		reg.HasPassword = reg.EncryptedPassword != ""
+		list = append(list, reg)
+	}
+	return list, rows.Err()
+}
+
+func (r *Repository) GetRegistry(ctx context.Context, id string) (*models.Registry, error) {
+	var reg models.Registry
+	var isDef int
+	err := r.db.QueryRowContext(ctx, "SELECT id, name, server_address, username, encrypted_password, is_default, created_at, updated_at FROM registries WHERE id = ?", id).
+		Scan(&reg.ID, &reg.Name, &reg.ServerAddress, &reg.Username, &reg.EncryptedPassword, &isDef, &reg.CreatedAt, &reg.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("registry not found")
+		}
+		return nil, err
+	}
+	reg.IsDefault = isDef == 1
+	reg.HasPassword = reg.EncryptedPassword != ""
+	return &reg, nil
+}
+
+func (r *Repository) GetRegistryByServerAddress(ctx context.Context, serverAddress string) (*models.Registry, error) {
+	var reg models.Registry
+	var isDef int
+	err := r.db.QueryRowContext(ctx, "SELECT id, name, server_address, username, encrypted_password, is_default, created_at, updated_at FROM registries WHERE server_address = ? OR server_address LIKE ? LIMIT 1",
+		serverAddress, "%"+serverAddress+"%").
+		Scan(&reg.ID, &reg.Name, &reg.ServerAddress, &reg.Username, &reg.EncryptedPassword, &isDef, &reg.CreatedAt, &reg.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	reg.IsDefault = isDef == 1
+	reg.HasPassword = reg.EncryptedPassword != ""
+	return &reg, nil
+}
+
+func (r *Repository) CreateRegistry(ctx context.Context, reg *models.Registry) error {
+	now := time.Now().UTC()
+	if reg.ID == "" {
+		reg.ID = "reg_" + hex.EncodeToString(func() []byte { b := make([]byte, 8); rand.Read(b); return b }())
+	}
+	reg.CreatedAt = now
+	reg.UpdatedAt = now
+
+	isDef := 0
+	if reg.IsDefault {
+		isDef = 1
+		// If setting as default, clear other defaults
+		_, _ = r.db.ExecContext(ctx, "UPDATE registries SET is_default = 0")
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO registries (id, name, server_address, username, encrypted_password, is_default, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		reg.ID, reg.Name, reg.ServerAddress, reg.Username, reg.EncryptedPassword, isDef, now, now,
+	)
+	return err
+}
+
+func (r *Repository) UpdateRegistry(ctx context.Context, reg *models.Registry) error {
+	now := time.Now().UTC()
+	reg.UpdatedAt = now
+
+	isDef := 0
+	if reg.IsDefault {
+		isDef = 1
+		_, _ = r.db.ExecContext(ctx, "UPDATE registries SET is_default = 0 WHERE id != ?", reg.ID)
+	}
+
+	if reg.EncryptedPassword != "" {
+		_, err := r.db.ExecContext(ctx, `
+			UPDATE registries SET name = ?, server_address = ?, username = ?, encrypted_password = ?, is_default = ?, updated_at = ?
+			WHERE id = ?`,
+			reg.Name, reg.ServerAddress, reg.Username, reg.EncryptedPassword, isDef, now, reg.ID,
+		)
+		return err
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE registries SET name = ?, server_address = ?, username = ?, is_default = ?, updated_at = ?
+		WHERE id = ?`,
+		reg.Name, reg.ServerAddress, reg.Username, isDef, now, reg.ID,
+	)
+	return err
+}
+
+func (r *Repository) DeleteRegistry(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM registries WHERE id = ?", id)
+	return err
+}

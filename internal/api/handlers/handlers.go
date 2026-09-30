@@ -20,6 +20,7 @@ type APIHandler struct {
 	dockerSvc    *service.DockerService
 	templateEng  *service.TemplateEngine
 	composeSvc   *service.ComposeService
+	secretKey    string
 }
 
 func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService, templateEng *service.TemplateEngine, composeSvc *service.ComposeService) *APIHandler {
@@ -29,6 +30,10 @@ func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService
 		templateEng: templateEng,
 		composeSvc:  composeSvc,
 	}
+}
+
+func (h *APIHandler) SetSecretKey(key string) {
+	h.secretKey = key
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {

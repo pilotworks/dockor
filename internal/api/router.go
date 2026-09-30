@@ -75,6 +75,12 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Get("/{id}/logs", h.ContainerLogs)
 			r.Get("/{id}/exec", h.ContainerExec)
 			r.Get("/{id}/stats", h.ContainerStats)
+			r.Get("/{id}/files", h.ListContainerFiles)
+			r.Get("/{id}/files/read", h.ReadContainerFile)
+			r.Get("/{id}/files/download", h.DownloadContainerFile)
+			r.Post("/{id}/files/write", h.WriteContainerFile)
+			r.Post("/{id}/files/upload", h.UploadContainerFile)
+			r.Delete("/{id}/files", h.DeleteContainerPath)
 		})
 
 		// Networks
@@ -107,6 +113,15 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/push", h.PushImage)
 		})
 
+		// Registries
+		r.Route("/registries", func(r chi.Router) {
+			r.Get("/", h.ListRegistries)
+			r.Post("/", h.CreateRegistry)
+			r.Get("/{id}", h.GetRegistry)
+			r.Put("/{id}", h.UpdateRegistry)
+			r.Delete("/{id}", h.DeleteRegistry)
+		})
+
 		// Nodes
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", h.ListNodes)
@@ -114,11 +129,14 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Delete("/{id}", h.DeleteNode)
 		})
 
-		// System
+		// System & Events
 		r.Route("/system", func(r chi.Router) {
 			r.Get("/df", h.GetDiskUsage)
 			r.Post("/prune", h.PruneSystem)
 		})
+
+		r.Get("/events", h.StreamEvents)
+		r.Get("/events/history", h.GetEventHistory)
 	})
 
 	// Dedicated /ws route for WebSockets

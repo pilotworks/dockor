@@ -18,6 +18,7 @@ import {
 } from '../ui/select';
 import { toast } from 'sonner';
 import { api } from '../../lib/api';
+import { useRegistries } from '../../hooks/use-registries';
 
 interface PushImageModalProps {
   isOpen: boolean;
@@ -44,14 +45,30 @@ export function PushImageModal({
   const [isPushing, setIsPushing] = useState(false);
   const [pushLogs, setPushLogs] = useState<string[]>([]);
 
+  const { data: registries = [] } = useRegistries();
+
+  const handleSelectSavedRegistry = (regIdStr: string) => {
+    const reg = registries.find((r) => String(r.id) === regIdStr);
+    if (reg) {
+      setServerAddress(reg.server_address);
+      if (reg.username) setUsername(reg.username);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       const valid = availableTags.filter((t) => t && t !== '<none>:<none>');
       setSelectedTag(valid[0] || 'custom');
       setPushLogs([]);
       setIsPushing(false);
+
+      const defaultReg = registries.find((r) => r.is_default);
+      if (defaultReg) {
+        setServerAddress(defaultReg.server_address);
+        if (defaultReg.username) setUsername(defaultReg.username);
+      }
     }
-  }, [isOpen, availableTags]);
+  }, [isOpen, availableTags, registries]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -199,6 +216,26 @@ export function PushImageModal({
 
             {showAuth && (
               <div className="p-3 mt-2 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 space-y-3 animate-in fade-in duration-100">
+                {registries.length > 0 && (
+                  <div>
+                    <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                      Choose Saved Registry
+                    </label>
+                    <Select onValueChange={handleSelectSavedRegistry}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select a configured registry..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {registries.map((r) => (
+                          <SelectItem key={r.id} value={String(r.id)}>
+                            {r.name} ({r.server_address}) {r.is_default ? '★' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
                     Registry Server Address

@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/pilotworks/dockor/internal/docker"
@@ -14,6 +17,7 @@ type Config struct {
 	DockerHost   string
 	JWTSecret    string
 	TemplatesDir string
+	SecretKey    string
 }
 
 func Load() *Config {
@@ -45,6 +49,22 @@ func Load() *Config {
 		templatesDir = "./templates"
 	}
 
+	// Separate encryption key for sensitive credentials (AES-256)
+	secretKey := os.Getenv("DOCKOR_SECRET_KEY")
+	if secretKey == "" {
+		keyFilePath := filepath.Join(dataDir, "dockor.secret.key")
+		if content, err := os.ReadFile(keyFilePath); err == nil && len(content) >= 32 {
+			secretKey = string(content)
+		} else {
+			// Generate 32 bytes (256-bit) cryptographically secure key
+			b := make([]byte, 32)
+			_, _ = rand.Read(b)
+			secretKey = hex.EncodeToString(b)
+			_ = os.MkdirAll(dataDir, 0700)
+			_ = os.WriteFile(keyFilePath, []byte(secretKey), 0600)
+		}
+	}
+
 	return &Config{
 		Port:         port,
 		DataDir:      dataDir,
@@ -52,5 +72,6 @@ func Load() *Config {
 		DockerHost:   dockerHost,
 		JWTSecret:    jwtSecret,
 		TemplatesDir: templatesDir,
+		SecretKey:    secretKey,
 	}
 }

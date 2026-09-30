@@ -334,4 +334,62 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(options || {}),
     }).then(handleResponse<import('../types').PruneResult>),
+
+  // Container Files
+  getContainerFiles: (id: string, path = '/') =>
+    fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files?path=${encodeURIComponent(path)}`).then(
+      handleResponse<import('../types').ContainerFilesResponse>
+    ),
+  readContainerFile: (id: string, path: string) =>
+    fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files/read?path=${encodeURIComponent(path)}`).then(
+      handleResponse<{ path: string; content: string; size: number }>
+    ),
+  writeContainerFile: (id: string, path: string, content: string) =>
+    fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files/write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content }),
+    }).then(handleResponse<{ status: string; path: string; size: number }>),
+  uploadContainerFile: (id: string, path: string, file: File) => {
+    const formData = new FormData();
+    formData.append('path', path);
+    formData.append('file', file);
+    return fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files/upload`, {
+      method: 'POST',
+      body: formData,
+    }).then(handleResponse<{ status: string; filename: string; path: string; size: number }>);
+  },
+  deleteContainerPath: (id: string, path: string) =>
+    fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files?path=${encodeURIComponent(path)}`, {
+      method: 'DELETE',
+    }).then(handleResponse<{ status: string; path: string }>),
+  getContainerFileDownloadUrl: (id: string, path: string) =>
+    `${API_BASE}/containers/${encodeURIComponent(id)}/files/download?path=${encodeURIComponent(path)}`,
+
+  // Registries
+  getRegistries: () =>
+    fetch(`${API_BASE}/registries`).then(handleResponse<import('../types').Registry[]>),
+  getRegistry: (id: string) =>
+    fetch(`${API_BASE}/registries/${encodeURIComponent(id)}`).then(handleResponse<import('../types').Registry>),
+  createRegistry: (payload: import('../types').CreateRegistryPayload) =>
+    fetch(`${API_BASE}/registries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<import('../types').Registry>),
+  updateRegistry: (id: string, payload: import('../types').UpdateRegistryPayload) =>
+    fetch(`${API_BASE}/registries/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<import('../types').Registry>),
+  deleteRegistry: (id: string) =>
+    fetch(`${API_BASE}/registries/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).then(handleResponse<{ status: string; id: string }>),
+
+  // Events
+  getEventHistory: () =>
+    fetch(`${API_BASE}/events/history`).then(handleResponse<import('../types').DockerDaemonEvent[]>),
+  getEventStreamUrl: () => `${API_BASE}/events`,
 };

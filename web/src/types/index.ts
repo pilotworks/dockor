@@ -377,4 +377,56 @@ export interface CreateContainerResult {
   warnings?: string[];
 }
 
+export interface Registry {
+  id: string;
+  name: string;
+  server_address: string;
+  username: string;
+  has_password: boolean;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRegistryPayload {
+  name: string;
+  server_address: string;
+  username: string;
+  password?: string;
+  is_default?: boolean;
+}
+
+export interface UpdateRegistryPayload {
+  name: string;
+  server_address: string;
+  username: string;
+  password?: string;
+  is_default?: boolean;
+}
+
+export interface FileItem {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size: number;
+  mode: string;
+  mod_time: string;
+  is_symlink?: boolean;
+  link_target?: string;
+}
+
+export interface ContainerFilesResponse {
+  path: string;
+  items: FileItem[];
+}
+
+export interface DockerDaemonEvent {
+  type: string;
+  action: string;
+  actor_id: string;
+  actor_name: string;
+  attributes: Record<string, string>;
+  timestamp: number;
+}
+
 

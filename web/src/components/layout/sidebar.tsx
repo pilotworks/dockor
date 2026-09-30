@@ -13,6 +13,7 @@ import {
   IconCheck,
   IconSun,
   IconMoon,
+  IconServer2,
 } from '@tabler/icons-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
@@ -23,6 +24,7 @@ import { useTemplates } from '../../hooks/use-templates';
 import { useNetworks } from '../../hooks/use-networks';
 import { useVolumes } from '../../hooks/use-volumes';
 import { useImages } from '../../hooks/use-images';
+import { useRegistries } from '../../hooks/use-registries';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 import { DockorLogo } from '../brand/dockor-logo';
@@ -38,6 +40,7 @@ export function Sidebar() {
   const { data: networks = [] } = useNetworks();
   const { data: volumes = [] } = useVolumes();
   const { data: images = [] } = useImages();
+  const { data: registries = [] } = useRegistries();
 
   const runningContainers = containers.filter((c) => c.state === 'running').length;
   const isDockerConnected = health?.docker === 'connected';
@@ -84,6 +87,12 @@ export function Sidebar() {
       label: 'Images',
       icon: IconDisc,
       badge: images.length > 0 ? `${images.length}` : undefined,
+    },
+    {
+      path: '/registries',
+      label: 'Registries',
+      icon: IconServer2,
+      badge: registries.length > 0 ? `${registries.length}` : undefined,
     },
     {
       path: '/nodes',

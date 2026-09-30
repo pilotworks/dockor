@@ -29,7 +29,12 @@ import {
   IconUnlink,
   IconDeviceFloppy,
   IconTrash,
+  IconFolder,
+  IconDownload,
+  IconSearch,
+  IconTextWrap,
 } from '@tabler/icons-react';
+import { ContainerFileBrowser } from '../containers/container-file-browser';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
@@ -133,7 +138,7 @@ export function ContainerDetailView() {
   const actionMutation = useContainerAction();
 
   const [activeTab, setActiveTab] = useTabQuery(
-    ['overview', 'network', 'logs', 'terminal', 'stats', 'inspect'] as const,
+    ['overview', 'network', 'logs', 'terminal', 'stats', 'files', 'inspect'] as const,
     'overview'
   );
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -519,6 +524,19 @@ export function ContainerDetailView() {
         >
           <IconActivity className="w-4 h-4" />
           <span>Telemetry & Metrics</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('files')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
+            activeTab === 'files'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
+              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <IconFolder className="w-4 h-4" />
+          <span>Files</span>
         </button>
 
         <button
@@ -981,6 +999,13 @@ export function ContainerDetailView() {
         </Card>
       )}
 
+      {/* Container Files Tab */}
+      {activeTab === 'files' && (
+        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-0 overflow-hidden shadow-sm">
+          <ContainerFileBrowser containerId={container.id} />
+        </Card>
+      )}
+
       {/* Raw JSON Inspect Tab */}
       {activeTab === 'inspect' && (
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
@@ -1080,7 +1105,7 @@ export function ContainerDetailView() {
   );
 }
 
-// Embedded Logs Component
+// Embedded Logs Component - Logs Stream Pro
 function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
   const { theme } = useAppStore();
   const isDark = theme === 'dark';
@@ -1088,11 +1113,16 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
   const [tail, setTail] = useState('150');
   const [autoScroll, setAutoScroll] = useState(true);
   const [reconnectKey, setReconnectKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isRegex, setIsRegex] = useState(false);
+  const [severity, setSeverity] = useState<'all' | 'error' | 'warn' | 'info'>('all');
+  const [wrapLines, setWrapLines] = useState(true);
 
   const xtermInstance = useRef<Terminal | null>(null);
   const fitAddonInstance = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const logsBufferRef = useRef<string>('');
+  const allLinesRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (xtermInstance.current) {
@@ -1100,10 +1130,77 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
     }
   }, [isDark]);
 
+  const matchesFilter = (line: string, query: string, useRegex: boolean, level: 'all' | 'error' | 'warn' | 'info') => {
+    const plain = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    const lower = plain.toLowerCase();
+
+    if (level !== 'all') {
+      const isErr = lower.includes('error') || lower.includes('err') || lower.includes('fatal') || lower.includes('panic') || lower.includes('failed') || lower.includes('exception');
+      const isWrn = lower.includes('warn') || lower.includes('warning');
+      const isInf = !isErr && !isWrn;
+      if (level === 'error' && !isErr) return false;
+      if (level === 'warn' && !isWrn) return false;
+      if (level === 'info' && !isInf) return false;
+    }
+
+    if (!query.trim()) return true;
+
+    if (useRegex) {
+      try {
+        const rx = new RegExp(query, 'i');
+        return rx.test(plain);
+      } catch {
+        return true;
+      }
+    }
+    return lower.includes(query.toLowerCase());
+  };
+
+  // Re-render filtered lines into xterm
+  const replayFilteredLogs = (query: string, useRegex: boolean, level: 'all' | 'error' | 'warn' | 'info') => {
+    const term = xtermInstance.current;
+    if (!term) return;
+    term.clear();
+    const matched = allLinesRef.current.filter((line) => matchesFilter(line, query, useRegex, level));
+    if (matched.length === 0 && (query || level !== 'all')) {
+      term.writeln('\x1b[33m[No log lines match current filters]\x1b[0m\r\n');
+    } else {
+      matched.forEach((line) => term.writeln(line));
+    }
+    if (autoScroll) term.scrollToBottom();
+  };
+
+  useEffect(() => {
+    replayFilteredLogs(searchQuery, isRegex, severity);
+  }, [searchQuery, isRegex, severity]);
+
+  const handleDownload = () => {
+    const activeLines = (searchQuery || severity !== 'all')
+      ? allLinesRef.current.filter((l) => matchesFilter(l, searchQuery, isRegex, severity))
+      : (allLinesRef.current.length > 0 ? allLinesRef.current : [logsBufferRef.current]);
+    const plainText = activeLines.map((l) => l.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')).join('\n');
+    const blob = new Blob([plainText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `container-${containerId.slice(0, 12)}-logs.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Logs exported to file');
+  };
+
+  const handleClear = () => {
+    allLinesRef.current = [];
+    logsBufferRef.current = '';
+    xtermInstance.current?.clear();
+    toast.success('Log buffer cleared');
+  };
+
   useEffect(() => {
     if (!terminalElement) return;
 
     logsBufferRef.current = '';
+    allLinesRef.current = [];
     const term = new Terminal({
       convertEol: true,
       cursorBlink: false,
@@ -1111,7 +1208,7 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
       fontSize: 12,
       lineHeight: 1.25,
-      scrollback: 5000,
+      scrollback: 10000,
       theme: isDark ? darkXtermTheme : lightXtermTheme,
     });
 
@@ -1132,14 +1229,28 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
-      term.writeln('\x1b[32m[Stream connected successfully]\x1b[0m\r\n');
+      term.writeln('\x1b[32m[Logs Stream connected successfully]\x1b[0m\r\n');
       setTimeout(() => fitAddon.fit(), 50);
     };
 
+    let partialChunk = '';
     ws.onmessage = (event) => {
-      const data = typeof event.data === 'string' ? event.data : textDecoder.decode(event.data);
-      logsBufferRef.current += data;
-      term.write(data);
+      const chunk = typeof event.data === 'string' ? event.data : textDecoder.decode(event.data);
+      logsBufferRef.current += chunk;
+
+      const lines = (partialChunk + chunk).split(/\r?\n/);
+      partialChunk = lines.pop() || '';
+
+      lines.forEach((line) => {
+        allLinesRef.current.push(line);
+        if (allLinesRef.current.length > 8000) {
+          allLinesRef.current.shift();
+        }
+        if (matchesFilter(line, searchQuery, isRegex, severity)) {
+          term.writeln(line);
+        }
+      });
+
       if (autoScroll) term.scrollToBottom();
     };
 
@@ -1160,14 +1271,87 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
   }, [terminalElement, containerId, tail, reconnectKey]);
 
   return (
-    <div className="flex flex-col h-[65vh]">
-      <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#0E0E12] flex items-center justify-between shrink-0 transition-colors">
-        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-mono">
-          Container Logs Stream
-        </span>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-[70vh]">
+      {/* Top Filter and Controls Toolbar */}
+      <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#0E0E12] flex flex-wrap items-center justify-between gap-3 shrink-0 transition-colors">
+        {/* Left Side: Search & Regex Filter */}
+        <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-md">
+          <div className="relative flex-1">
+            <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder={isRegex ? 'Regex filter (e.g. error|warn|fatal)...' : 'Search logs...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-8 pl-8 pr-8 text-xs bg-white dark:bg-[#18181B] border border-zinc-200 dark:border-[#272730] rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-zinc-800 dark:text-zinc-200"
+            />
+            <button
+              type="button"
+              onClick={() => setIsRegex(!isRegex)}
+              title={isRegex ? 'Disable Regex' : 'Enable Regex'}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1 py-0.5 rounded transition-colors ${
+                isRegex
+                  ? 'bg-blue-600 text-white font-bold'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800'
+              }`}
+            >
+              .*
+            </button>
+          </div>
+
+          {/* Severity Filter Buttons */}
+          <div className="flex items-center rounded-md border border-zinc-200 dark:border-[#272730] p-0.5 bg-zinc-100/80 dark:bg-[#18181B] text-[11px] font-medium">
+            <button
+              type="button"
+              onClick={() => setSeverity('all')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                severity === 'all'
+                  ? 'bg-white dark:bg-[#272730] text-zinc-900 dark:text-white font-semibold shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setSeverity('error')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                severity === 'error'
+                  ? 'bg-red-500/15 text-red-600 dark:text-red-400 font-semibold shadow-xs'
+                  : 'text-zinc-500 hover:text-red-600 dark:hover:text-red-400'
+              }`}
+            >
+              Error
+            </button>
+            <button
+              type="button"
+              onClick={() => setSeverity('warn')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                severity === 'warn'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-xs'
+                  : 'text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400'
+              }`}
+            >
+              Warn
+            </button>
+            <button
+              type="button"
+              onClick={() => setSeverity('info')}
+              className={`px-2 py-0.5 rounded transition-all ${
+                severity === 'info'
+                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold shadow-xs'
+                  : 'text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+            >
+              Info
+            </button>
+          </div>
+        </div>
+
+        {/* Right Side Action Controls */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Select value={tail} onValueChange={(val) => setTail(val)}>
-            <SelectTrigger className="h-7 w-[120px] px-2 text-[11px] font-mono">
+            <SelectTrigger className="h-7 w-[105px] px-2 text-[11px] font-mono">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[100]">
@@ -1175,14 +1359,26 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
               <SelectItem value="150">Last 150</SelectItem>
               <SelectItem value="500">Last 500</SelectItem>
               <SelectItem value="1000">Last 1000</SelectItem>
+              <SelectItem value="5000">Last 5000</SelectItem>
             </SelectContent>
           </Select>
+
+          <Button
+            variant={wrapLines ? 'primary' : 'surface'}
+            size="sm"
+            onClick={() => setWrapLines(!wrapLines)}
+            className="h-7 px-2 text-xs gap-1"
+            title={wrapLines ? 'Disable line wrap' : 'Enable line wrap'}
+          >
+            <IconTextWrap className="w-3.5 h-3.5" /> Wrap
+          </Button>
 
           <Button
             variant={autoScroll ? 'primary' : 'surface'}
             size="sm"
             onClick={() => setAutoScroll(!autoScroll)}
             className="h-7 px-2 text-xs gap-1"
+            title="Auto scroll to bottom"
           >
             <IconArrowDownCircle className="w-3.5 h-3.5" /> Scroll
           </Button>
@@ -1190,11 +1386,22 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
           <Button
             variant="surface"
             size="sm"
+            onClick={handleDownload}
+            className="h-7 px-2 text-xs gap-1 text-zinc-700 dark:text-zinc-300"
+            title="Export / Download logs to file"
+          >
+            <IconDownload className="w-3.5 h-3.5" /> Export
+          </Button>
+
+          <Button
+            variant="surface"
+            size="sm"
             onClick={() => {
               navigator.clipboard.writeText(logsBufferRef.current);
-              toast.success('Logs copied');
+              toast.success('Logs copied to clipboard');
             }}
             className="h-7 px-2 text-xs gap-1"
+            title="Copy logs to clipboard"
           >
             <IconCopy className="w-3.5 h-3.5" /> Copy
           </Button>
@@ -1202,8 +1409,9 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
           <Button
             variant="surface"
             size="sm"
-            onClick={() => xtermInstance.current?.clear()}
-            className="h-7 px-2 text-xs gap-1"
+            onClick={handleClear}
+            className="h-7 px-2 text-xs gap-1 text-red-600 dark:text-red-400"
+            title="Clear current log buffer"
           >
             <IconClearAll className="w-3.5 h-3.5" /> Clear
           </Button>
@@ -1213,12 +1421,20 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
             size="sm"
             onClick={() => setReconnectKey((k) => k + 1)}
             className="h-7 px-2 text-xs gap-1"
+            title="Reconnect logs stream"
           >
             <IconRefresh className="w-3.5 h-3.5" /> Refresh
           </Button>
         </div>
       </div>
-      <div ref={setTerminalElement} className="flex-1 w-full p-3 overflow-hidden bg-white dark:bg-[#09090B]" />
+
+      {/* Terminal Viewport */}
+      <div
+        ref={setTerminalElement}
+        className={`flex-1 w-full p-3 overflow-hidden bg-white dark:bg-[#09090B] ${
+          wrapLines ? '' : 'overflow-x-auto whitespace-pre'
+        }`}
+      />
     </div>
   );
 }

@@ -1,12 +1,17 @@
 package service
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/netip"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -28,7 +33,10 @@ type DaemonInfo struct {
 }
 
 type DockerService struct {
-	cli *client.Client
+	cli          *client.Client
+	eventMu      sync.RWMutex
+	recentEvents []models.DockerDaemonEvent
+	subscribers  map[chan models.DockerDaemonEvent]struct{}
 }
 
 func NewDockerService(dockerHost string) (*DockerService, error) {
@@ -42,7 +50,10 @@ func NewDockerService(dockerHost string) (*DockerService, error) {
 		return nil, fmt.Errorf("failed to create moby client: %w", err)
 	}
 
-	return &DockerService{cli: cli}, nil
+	return &DockerService{
+		cli:         cli,
+		subscribers: make(map[chan models.DockerDaemonEvent]struct{}),
+	}, nil
 }
 
 func (ds *DockerService) Ping(ctx context.Context) error {
@@ -929,6 +940,323 @@ func (ds *DockerService) PushImage(ctx context.Context, target string, authHeade
 		return nil, fmt.Errorf("failed to push image: %w", err)
 	}
 	return res, nil
+}
+
+// Event Monitoring & History
+func (ds *DockerService) StartEventMonitoring(ctx context.Context) {
+	if ds.cli == nil {
+		return
+	}
+
+	go func() {
+		res := ds.cli.Events(ctx, client.EventsListOptions{})
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-res.Err:
+				if err != nil {
+					return
+				}
+			case msg, ok := <-res.Messages:
+				if !ok {
+					return
+				}
+				name := ""
+				if msg.Actor.Attributes != nil {
+					name = msg.Actor.Attributes["name"]
+				}
+				evt := models.DockerDaemonEvent{
+					Type:       string(msg.Type),
+					Action:     string(msg.Action),
+					ActorID:    msg.Actor.ID,
+					ActorName:  name,
+					Attributes: msg.Actor.Attributes,
+					Timestamp:  msg.Time,
+				}
+				ds.recordEvent(evt)
+			}
+		}
+	}()
+}
+
+func (ds *DockerService) recordEvent(evt models.DockerDaemonEvent) {
+	ds.eventMu.Lock()
+	defer ds.eventMu.Unlock()
+
+	ds.recentEvents = append(ds.recentEvents, evt)
+	if len(ds.recentEvents) > 100 {
+		ds.recentEvents = ds.recentEvents[len(ds.recentEvents)-100:]
+	}
+
+	for ch := range ds.subscribers {
+		select {
+		case ch <- evt:
+		default:
+		}
+	}
+}
+
+func (ds *DockerService) GetRecentEvents() []models.DockerDaemonEvent {
+	ds.eventMu.RLock()
+	defer ds.eventMu.RUnlock()
+
+	out := make([]models.DockerDaemonEvent, len(ds.recentEvents))
+	copy(out, ds.recentEvents)
+	return out
+}
+
+func (ds *DockerService) SubscribeEvents() (chan models.DockerDaemonEvent, func()) {
+	ch := make(chan models.DockerDaemonEvent, 32)
+	ds.eventMu.Lock()
+	if ds.subscribers == nil {
+		ds.subscribers = make(map[chan models.DockerDaemonEvent]struct{})
+	}
+	ds.subscribers[ch] = struct{}{}
+	ds.eventMu.Unlock()
+
+	unsubscribe := func() {
+		ds.eventMu.Lock()
+		delete(ds.subscribers, ch)
+		close(ch)
+		ds.eventMu.Unlock()
+	}
+	return ch, unsubscribe
+}
+
+// Container File Management
+func (ds *DockerService) ListContainerFiles(ctx context.Context, containerID, dirPath string) ([]models.FileItem, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+	if dirPath == "" {
+		dirPath = "/"
+	}
+	if !strings.HasPrefix(dirPath, "/") {
+		dirPath = "/" + dirPath
+	}
+
+	// Try exec ls -lap first if container is running
+	execID, err := ds.ExecCreate(ctx, containerID, []string{"/bin/sh", "-c", fmt.Sprintf("ls -lap %q", dirPath)}, false)
+	if err != nil {
+		execID, err = ds.ExecCreate(ctx, containerID, []string{"ls", "-lap", dirPath}, false)
+	}
+
+	if err == nil {
+		hijacked, err := ds.ExecAttach(ctx, execID, false)
+		if err == nil {
+			defer hijacked.Close()
+			outBytes, _ := io.ReadAll(hijacked.Reader)
+			lines := strings.Split(string(outBytes), "\n")
+			var items []models.FileItem
+
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "total ") {
+					continue
+				}
+				fields := strings.Fields(line)
+				if len(fields) < 8 {
+					continue
+				}
+				nameField := fields[len(fields)-1]
+				if nameField == "./" || nameField == "../" || nameField == "." || nameField == ".." {
+					continue
+				}
+
+				isDir := strings.HasSuffix(nameField, "/")
+				cleanName := strings.TrimSuffix(nameField, "/")
+				mode := fields[0]
+				if strings.HasPrefix(mode, "d") {
+					isDir = true
+				}
+				isSymlink := strings.HasPrefix(mode, "l")
+				size := int64(0)
+				fmt.Sscanf(fields[4], "%d", &size)
+
+				itemPath := "/" + filepath.ToSlash(filepath.Join(strings.Trim(dirPath, "/"), cleanName))
+
+				items = append(items, models.FileItem{
+					Name:      cleanName,
+					Path:      itemPath,
+					IsDir:     isDir,
+					Size:      size,
+					Mode:      mode,
+					ModTime:   time.Now(),
+					IsSymlink: isSymlink,
+				})
+			}
+
+			if len(items) > 0 {
+				sort.Slice(items, func(i, j int) bool {
+					if items[i].IsDir != items[j].IsDir {
+						return items[i].IsDir
+					}
+					return items[i].Name < items[j].Name
+				})
+				return items, nil
+			}
+		}
+	}
+
+	// Fallback to CopyFromContainer which works on distroless or stopped containers
+	res, err := ds.cli.CopyFromContainer(ctx, containerID, client.CopyFromContainerOptions{
+		SourcePath: dirPath,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to access directory: %w", err)
+	}
+	defer res.Content.Close()
+
+	tr := tar.NewReader(res.Content)
+	var items []models.FileItem
+	cleanDir := strings.Trim(dirPath, "/")
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		hdrName := strings.Trim(hdr.Name, "/")
+		if hdrName == cleanDir || hdrName == "" || hdrName == "." {
+			continue
+		}
+
+		rel := strings.TrimPrefix(hdrName, cleanDir)
+		rel = strings.TrimPrefix(rel, "/")
+		parts := strings.Split(rel, "/")
+		if len(parts) > 1 && (len(parts) > 2 || parts[1] != "") {
+			continue
+		}
+
+		itemName := parts[0]
+		if itemName == "" || itemName == "." || itemName == ".." {
+			continue
+		}
+
+		itemPath := "/" + filepath.ToSlash(filepath.Join(cleanDir, itemName))
+		isDir := hdr.FileInfo().IsDir()
+		isSymlink := hdr.Typeflag == tar.TypeSymlink
+
+		items = append(items, models.FileItem{
+			Name:       itemName,
+			Path:       itemPath,
+			IsDir:      isDir,
+			Size:       hdr.Size,
+			Mode:       hdr.FileInfo().Mode().String(),
+			ModTime:    hdr.ModTime,
+			IsSymlink:  isSymlink,
+			LinkTarget: hdr.Linkname,
+		})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].IsDir != items[j].IsDir {
+			return items[i].IsDir
+		}
+		return items[i].Name < items[j].Name
+	})
+
+	return items, nil
+}
+
+func (ds *DockerService) ReadContainerFile(ctx context.Context, containerID, filePath string) ([]byte, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.CopyFromContainer(ctx, containerID, client.CopyFromContainerOptions{
+		SourcePath: filePath,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	defer res.Content.Close()
+
+	tr := tar.NewReader(res.Content)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if hdr.FileInfo().IsDir() {
+			continue
+		}
+
+		// Read up to 10MB
+		maxLimit := io.LimitReader(tr, 10*1024*1024)
+		return io.ReadAll(maxLimit)
+	}
+
+	return nil, fmt.Errorf("file not found in archive")
+}
+
+func (ds *DockerService) WriteContainerFile(ctx context.Context, containerID, targetPath string, content []byte) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+
+	dir := filepath.ToSlash(filepath.Dir(targetPath))
+	filename := filepath.Base(targetPath)
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	hdr := &tar.Header{
+		Name:    filename,
+		Mode:    0644,
+		Size:    int64(len(content)),
+		ModTime: time.Now(),
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("failed to write tar header: %w", err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		return fmt.Errorf("failed to write tar content: %w", err)
+	}
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("failed to finalize tar archive: %w", err)
+	}
+
+	_, err := ds.cli.CopyToContainer(ctx, containerID, client.CopyToContainerOptions{
+		DestinationPath: dir,
+		Content:         bytes.NewReader(buf.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to copy file to container: %w", err)
+	}
+	return nil
+}
+
+func (ds *DockerService) DeleteContainerPath(ctx context.Context, containerID, targetPath string) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+
+	execID, err := ds.ExecCreate(ctx, containerID, []string{"/bin/sh", "-c", fmt.Sprintf("rm -rf %q", targetPath)}, false)
+	if err != nil {
+		execID, err = ds.ExecCreate(ctx, containerID, []string{"rm", "-rf", targetPath}, false)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create delete command: %w", err)
+	}
+
+	hijacked, err := ds.ExecAttach(ctx, execID, false)
+	if err != nil {
+		return fmt.Errorf("failed to execute delete command: %w", err)
+	}
+	defer hijacked.Close()
+
+	_, _ = io.ReadAll(hijacked.Reader)
+	return nil
 }
 
 
