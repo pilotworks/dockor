@@ -4,6 +4,13 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   IconStack2,
   IconX,
   IconPlus,
@@ -258,17 +265,18 @@ export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModa
               <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 Starter Template Preset
               </label>
-              <select
-                value={selectedPreset}
-                onChange={(e) => handleSelectPreset(e.target.value)}
-                className="w-full text-xs h-9 px-3 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-              >
-                {Object.entries(PRESETS).map(([key, item]) => (
-                  <option key={key} value={key}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={selectedPreset} onValueChange={handleSelectPreset}>
+                <SelectTrigger className="w-full text-xs h-9 bg-zinc-50 dark:bg-[#16161C] border-zinc-200 dark:border-[#272730]">
+                  <SelectValue placeholder="Load a starter template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRESETS).map(([key, item]) => (
+                    <SelectItem key={key} value={key}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <span className="text-[11px] text-zinc-500">
                 Quickly populate with common production architectures
               </span>

@@ -6,6 +6,13 @@ import { useVolumes } from '../../hooks/use-volumes';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import {
   IconBox,
   IconX,
   IconPlus,
@@ -249,18 +256,22 @@ export function CreateContainerModal({ isOpen, onClose, onSuccess }: CreateConta
                       className="font-mono text-xs flex-1"
                       required
                     />
-                    <select
+                    <Select
                       value={p.protocol}
-                      onChange={(e) => {
+                      onValueChange={(val: 'tcp' | 'udp') => {
                         const next = [...ports];
-                        next[idx].protocol = e.target.value as 'tcp' | 'udp';
+                        next[idx].protocol = val;
                         setPorts(next);
                       }}
-                      className="text-xs h-9 px-2 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100"
                     >
-                      <option value="tcp">TCP</option>
-                      <option value="udp">UDP</option>
-                    </select>
+                      <SelectTrigger className="w-[85px] h-9 text-xs bg-zinc-50 dark:bg-[#16161C] border-zinc-200 dark:border-[#272730]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tcp">TCP</SelectItem>
+                        <SelectItem value="udp">UDP</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <button
                       type="button"
                       onClick={() => handleRemovePort(idx)}
@@ -319,18 +330,22 @@ export function CreateContainerModal({ isOpen, onClose, onSuccess }: CreateConta
                       }}
                       className="font-mono text-xs flex-1"
                     />
-                    <select
+                    <Select
                       value={v.mode}
-                      onChange={(e) => {
+                      onValueChange={(val: 'rw' | 'ro') => {
                         const next = [...volumes];
-                        next[idx].mode = e.target.value as 'rw' | 'ro';
+                        next[idx].mode = val;
                         setVolumes(next);
                       }}
-                      className="text-xs h-9 px-2 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100"
                     >
-                      <option value="rw">RW</option>
-                      <option value="ro">RO</option>
-                    </select>
+                      <SelectTrigger className="w-[85px] h-9 text-xs bg-zinc-50 dark:bg-[#16161C] border-zinc-200 dark:border-[#272730]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rw">RW</SelectItem>
+                        <SelectItem value="ro">RO</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <button
                       type="button"
                       onClick={() => handleRemoveVolume(idx)}
@@ -350,38 +365,40 @@ export function CreateContainerModal({ isOpen, onClose, onSuccess }: CreateConta
               <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 Network Driver
               </label>
-              <select
-                value={network}
-                onChange={(e) => setNetwork(e.target.value)}
-                className="w-full text-xs h-9 px-3 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-              >
-                <option value="bridge">bridge (default)</option>
-                <option value="host">host (share host stack)</option>
-                <option value="none">none (isolated)</option>
-                {networks
-                  .filter((n) => !['bridge', 'host', 'none'].includes(n.Name))
-                  .map((n) => (
-                    <option key={n.Id} value={n.Name}>
-                      {n.Name} ({n.Driver})
-                    </option>
-                  ))}
-              </select>
+              <Select value={network} onValueChange={setNetwork}>
+                <SelectTrigger className="w-full text-xs h-9 bg-zinc-50 dark:bg-[#16161C] border-zinc-200 dark:border-[#272730]">
+                  <SelectValue placeholder="Select network" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bridge">bridge (default)</SelectItem>
+                  <SelectItem value="host">host (share host stack)</SelectItem>
+                  <SelectItem value="none">none (isolated)</SelectItem>
+                  {networks
+                    .filter((n) => !['bridge', 'host', 'none'].includes(n.Name))
+                    .map((n) => (
+                      <SelectItem key={n.Id} value={n.Name}>
+                        {n.Name} ({n.Driver})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 Restart Policy
               </label>
-              <select
-                value={restartPolicy}
-                onChange={(e) => setRestartPolicy(e.target.value as any)}
-                className="w-full text-xs h-9 px-3 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-              >
-                <option value="unless-stopped">Unless Stopped (Recommended)</option>
-                <option value="always">Always</option>
-                <option value="on-failure">On Failure</option>
-                <option value="no">No</option>
-              </select>
+              <Select value={restartPolicy} onValueChange={(val: any) => setRestartPolicy(val)}>
+                <SelectTrigger className="w-full text-xs h-9 bg-zinc-50 dark:bg-[#16161C] border-zinc-200 dark:border-[#272730]">
+                  <SelectValue placeholder="Select policy" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unless-stopped">Unless Stopped (Recommended)</SelectItem>
+                  <SelectItem value="always">Always</SelectItem>
+                  <SelectItem value="on-failure">On Failure</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

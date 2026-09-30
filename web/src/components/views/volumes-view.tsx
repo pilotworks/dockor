@@ -17,6 +17,13 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 import { CreateVolumeModal } from '../volumes/create-volume-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -246,17 +253,18 @@ export function VolumesView() {
 
           {/* Driver Filter if multiple */}
           {drivers.length > 2 && (
-            <select
-              value={driverFilter}
-              onChange={(e) => setDriverFilter(e.target.value)}
-              className="text-xs bg-white dark:bg-[#141418] border border-zinc-200 dark:border-[#23232A] rounded-lg px-2.5 py-1 text-zinc-700 dark:text-zinc-300"
-            >
-              {drivers.map((d) => (
-                <option key={d} value={d}>
-                  Driver: {d === 'all' ? 'All' : d}
-                </option>
-              ))}
-            </select>
+            <Select value={driverFilter} onValueChange={setDriverFilter}>
+              <SelectTrigger className="h-8 text-xs w-[140px] bg-white dark:bg-[#141418] border-zinc-200 dark:border-[#23232A]">
+                <SelectValue placeholder="Driver" />
+              </SelectTrigger>
+              <SelectContent>
+                {drivers.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    Driver: {d === 'all' ? 'All' : d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 
