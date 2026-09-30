@@ -67,19 +67,19 @@ export function TemplatesView() {
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border',
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border cursor-pointer',
                 isActive
-                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white dark:border-zinc-700'
-                  : 'bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border-transparent hover:bg-zinc-200/60 dark:hover:bg-zinc-900/60'
+                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-300 dark:border-zinc-700 shadow-xs font-semibold'
+                  : 'bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
               )}
             >
               <span>{cat}</span>
               <span
                 className={cn(
-                  'text-[10px] font-mono px-1.5 py-0.2 rounded',
+                  'text-[10px] font-mono px-1.5 py-0.5 rounded transition-colors',
                   isActive
-                    ? 'bg-zinc-700 text-white dark:bg-zinc-700 dark:text-zinc-200'
-                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-400'
+                    ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-600/50'
+                    : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-400'
                 )}
               >
                 {count}

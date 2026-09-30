@@ -545,6 +545,8 @@ export function StackDetailView() {
                             <div className="flex flex-wrap items-center gap-2 mt-2">
                               {container.ports.map((p, idx) => {
                                 const hasPublic = Boolean(p.public_port);
+                                const ipDisplay = p.ip ? (p.ip === '::' ? '[::]' : p.ip) : '';
+                                const host = p.ip && p.ip !== '0.0.0.0' && p.ip !== '::' ? p.ip : 'localhost';
                                 return (
                                   <span
                                     key={idx}
@@ -552,12 +554,17 @@ export function StackDetailView() {
                                   >
                                     {hasPublic ? (
                                       <a
-                                        href={`http://localhost:${p.public_port}`}
+                                        href={`http://${host}:${p.public_port}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-0.5"
                                       >
-                                        :{p.public_port}
+                                        {ipDisplay && (
+                                          <span className="text-zinc-500 dark:text-zinc-400">
+                                            {ipDisplay}:
+                                          </span>
+                                        )}
+                                        {p.public_port}
                                         <IconExternalLink className="w-2.5 h-2.5" />
                                       </a>
                                     ) : (

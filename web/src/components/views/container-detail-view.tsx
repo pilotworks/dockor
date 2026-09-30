@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useContainer, useContainerAction } from '../../hooks/use-containers';
+import { useNetworks, useConnectNetwork, useDisconnectNetwork } from '../../hooks/use-networks';
 import {
   IconBox,
   IconArrowLeft,
@@ -23,6 +24,8 @@ import {
   IconArrowDownCircle,
   IconClearAll,
   IconRefresh,
+  IconPlus,
+  IconUnlink,
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -35,6 +38,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../ui/dialog';
+import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
 import { useAppStore } from '../../stores/use-app-store';
 import { Terminal } from '@xterm/xterm';
@@ -115,10 +126,59 @@ export function ContainerDetailView() {
   const { data: container, isLoading, refetch } = useContainer(id);
   const actionMutation = useContainerAction();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'terminal' | 'stats' | 'inspect'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'logs' | 'terminal' | 'stats' | 'inspect'>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [envSearch, setEnvSearch] = useState('');
+
+  // Networking Hooks & State
+  const { data: allNetworks = [] } = useNetworks();
+  const connectMutation = useConnectNetwork();
+  const disconnectMutation = useDisconnectNetwork();
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [selectedNetworkId, setSelectedNetworkId] = useState('');
+
+  const connectedNetworkList = useMemo(() => {
+    return Object.entries(container?.network_settings?.networks || {});
+  }, [container?.network_settings?.networks]);
+
+  const unconnectedNetworks = useMemo(() => {
+    const connectedNames = new Set(Object.keys(container?.network_settings?.networks || {}));
+    return allNetworks.filter((n) => !connectedNames.has(n.Name) && !connectedNames.has(n.Id));
+  }, [allNetworks, container?.network_settings?.networks]);
+
+  const handleConnectNetwork = async () => {
+    if (!id || !selectedNetworkId) return;
+    try {
+      await connectMutation.mutateAsync({
+        networkId: selectedNetworkId,
+        containerId: id,
+      });
+      toast.success('Container connected to network');
+      setIsConnectModalOpen(false);
+      setSelectedNetworkId('');
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to connect container to network', { description: err.message });
+    }
+  };
+
+  const handleDisconnectNetwork = async (netName: string, netId: string) => {
+    if (!id) return;
+    if (confirm(`Are you sure you want to disconnect container from network "${netName}"?`)) {
+      try {
+        await disconnectMutation.mutateAsync({
+          networkId: netId,
+          containerId: id,
+          force: true,
+        });
+        toast.success(`Disconnected from "${netName}"`);
+        refetch();
+      } catch (err: any) {
+        toast.error('Failed to disconnect from network', { description: err.message });
+      }
+    }
+  };
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -127,14 +187,19 @@ export function ContainerDetailView() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const [loadingAction, setLoadingAction] = useState<'start' | 'stop' | 'restart' | null>(null);
+
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
     if (!id || !container) return;
+    setLoadingAction(action);
     try {
       await actionMutation.mutateAsync({ id, action });
       toast.success(`Container ${container.name} ${action}ed`);
       refetch();
     } catch (err: any) {
       toast.error(`Failed to ${action} container`, { description: err.message });
+    } finally {
+      setLoadingAction(null);
     }
   };
 
@@ -160,9 +225,9 @@ export function ContainerDetailView() {
     );
   }
 
-  const isRunning = container.state.running;
-  const isPaused = container.state.paused;
-  const isRestarting = container.state.restarting;
+  const isRunning = Boolean(container.state?.running);
+  const isPaused = Boolean(container.state?.paused);
+  const isRestarting = Boolean(container.state?.restarting);
 
   const stateVariant = isRunning
     ? 'success'
@@ -172,8 +237,8 @@ export function ContainerDetailView() {
     ? 'warning'
     : 'neutral';
 
-  const containerName = container.name.replace(/^\//, '');
-  const shortId = container.id.slice(0, 12);
+  const containerName = (container.name || '').replace(/^\//, '') || container.id || 'Unnamed Container';
+  const shortId = (container.id || '').slice(0, 12);
 
   return (
     <div className="space-y-5 pb-12">
@@ -199,38 +264,50 @@ export function ContainerDetailView() {
             <Button
               variant="surface"
               size="sm"
-              disabled={actionMutation.isPending}
+              disabled={Boolean(loadingAction) || actionMutation.isPending}
               onClick={() => handleAction('stop')}
               className="gap-1.5 text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400"
               title="Stop container"
             >
-              <IconPlayerStop className="w-3.5 h-3.5" />
-              Stop
+              {loadingAction === 'stop' ? (
+                <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <IconPlayerStop className="w-3.5 h-3.5" />
+              )}
+              {loadingAction === 'stop' ? 'Stopping...' : 'Stop'}
             </Button>
           ) : (
             <Button
               variant="surface"
               size="sm"
-              disabled={actionMutation.isPending}
+              disabled={Boolean(loadingAction) || actionMutation.isPending}
               onClick={() => handleAction('start')}
               className="gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
               title="Start container"
             >
-              <IconPlayerPlay className="w-3.5 h-3.5" />
-              Start
+              {loadingAction === 'start' ? (
+                <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <IconPlayerPlay className="w-3.5 h-3.5" />
+              )}
+              {loadingAction === 'start' ? 'Starting...' : 'Start'}
             </Button>
           )}
 
           <Button
             variant="surface"
             size="sm"
-            disabled={actionMutation.isPending}
+            disabled={Boolean(loadingAction) || actionMutation.isPending}
             onClick={() => handleAction('restart')}
             className="gap-1.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
             title="Restart container"
           >
-            <IconRotateClockwise className="w-3.5 h-3.5" />
-            Restart
+            {loadingAction === 'restart' ? (
+              <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <IconRotateClockwise className="w-3.5 h-3.5" />
+            )}
+            {loadingAction === 'restart' ? 'Restarting...' : 'Restart'}
           </Button>
         </div>
       </div>
@@ -249,9 +326,9 @@ export function ContainerDetailView() {
                   {containerName}
                 </h1>
                 <Badge variant={stateVariant} dot className="text-xs capitalize font-medium">
-                  {container.state.status}
+                  {container.state?.status || 'unknown'}
                 </Badge>
-                {container.config.labels?.['com.docker.compose.project'] && (
+                {container.config?.labels?.['com.docker.compose.project'] && (
                   <Badge variant="neutral" className="text-[10px] font-mono">
                     Stack: {container.config.labels['com.docker.compose.project']}
                   </Badge>
@@ -273,16 +350,16 @@ export function ContainerDetailView() {
 
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(container.config.image || container.image, 'img')}
+                  onClick={() => copyToClipboard(container.config?.image || container.image || '', 'img')}
                   className="flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
                   title="Click to copy image tag"
                 >
-                  <span className="truncate max-w-[280px]">Image: {container.config.image || container.image}</span>
+                  <span className="truncate max-w-[280px]">Image: {container.config?.image || container.image || 'Unknown'}</span>
                   {copiedKey === 'img' ? <IconCheck className="w-3 h-3 text-emerald-500" /> : <IconCopy className="w-3 h-3 text-zinc-400" />}
                 </button>
 
                 <span>•</span>
-                <span>Created: {new Date(container.created).toLocaleString()}</span>
+                <span>Created: {container.created ? new Date(container.created).toLocaleString() : 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -292,7 +369,7 @@ export function ContainerDetailView() {
             <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#202026] rounded-lg px-3 py-1.5 text-right font-mono">
               <span className="text-[10px] uppercase font-semibold text-zinc-400 block">IP Address</span>
               <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                {container.network_settings.ip_address || 'Host/None'}
+                {container.network_settings?.ip_address || 'Host/None'}
               </span>
             </div>
 
@@ -319,6 +396,24 @@ export function ContainerDetailView() {
         >
           <IconInfoCircle className="w-4 h-4" />
           <span>Overview & Specs</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('network')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
+            activeTab === 'network'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
+              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <IconNetwork className="w-4 h-4" />
+          <span>Networking</span>
+          {connectedNetworkList.length > 0 && (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+              {connectedNetworkList.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -387,17 +482,17 @@ export function ContainerDetailView() {
                   Port Mappings
                 </span>
                 <span className="text-[11px] font-mono text-zinc-400">
-                  {Object.keys(container.network_settings.ports || {}).length} configured
+                  {Object.keys(container.network_settings?.ports || {}).length} configured
                 </span>
               </div>
 
-              {Object.keys(container.network_settings.ports || {}).length === 0 ? (
+              {Object.keys(container.network_settings?.ports || {}).length === 0 ? (
                 <div className="py-6 text-center text-xs text-zinc-400 font-mono">
                   No public ports exposed on host
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-                  {Object.entries(container.network_settings.ports || {}).map(([cPort, bindings], idx) => {
+                  {Object.entries(container.network_settings?.ports || {}).map(([cPort, bindings], idx) => {
                     const hasBinding = bindings && bindings.length > 0;
                     const hostPort = hasBinding ? bindings[0].host_port : null;
                     const hostIp = hasBinding ? bindings[0].host_ip || '0.0.0.0' : null;
@@ -451,12 +546,12 @@ export function ContainerDetailView() {
                   Network Topology
                 </span>
                 <span className="text-[11px] font-mono text-zinc-400">
-                  {Object.keys(container.network_settings.networks || {}).length} networks
+                  {Object.keys(container.network_settings?.networks || {}).length} networks
                 </span>
               </div>
 
               <div className="space-y-2.5 font-mono text-xs">
-                {Object.entries(container.network_settings.networks || {}).map(([netName, netInfo], idx) => (
+                {Object.entries(container.network_settings?.networks || {}).map(([netName, netInfo], idx) => (
                   <div key={idx} className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 space-y-1">
                     <div className="flex items-center justify-between font-bold text-zinc-900 dark:text-zinc-100">
                       <span>{netName}</span>
@@ -501,7 +596,7 @@ export function ContainerDetailView() {
                       <th className="py-2 text-right">Mode</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-850">
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                     {(container.mounts || []).map((m, idx) => (
                       <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
                         <td className="py-2.5">
@@ -531,7 +626,7 @@ export function ContainerDetailView() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                  Environment Variables ({container.config.env?.length || 0})
+                  Environment Variables ({container.config?.env?.length || 0})
                 </span>
               </div>
               <div className="w-full sm:w-64">
@@ -554,8 +649,8 @@ export function ContainerDetailView() {
                     <th className="py-2 text-right w-20">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-850">
-                  {(container.config.env || [])
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                  {(container.config?.env || [])
                     .filter((e) => e.toLowerCase().includes(envSearch.toLowerCase()))
                     .map((envStr, idx) => {
                       const eqIdx = envStr.indexOf('=');
@@ -602,6 +697,203 @@ export function ContainerDetailView() {
         </div>
       )}
 
+      {/* Networking & Ports Tab */}
+      {activeTab === 'network' && (
+        <div className="space-y-5">
+          {/* Top Network Action & Overview Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <IconNetwork className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Network Connectivity
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Connected to {connectedNetworkList.length} network{connectedNetworkList.length === 1 ? '' : 's'} • Mode: <span className="font-mono text-zinc-700 dark:text-zinc-300">{container.host_config?.network_mode || 'bridge'}</span>
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsConnectModalOpen(true)}
+              className="gap-1.5 self-start sm:self-auto"
+            >
+              <IconPlus className="w-4 h-4" /> Connect Network
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Connected Networks */}
+            <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <IconNetwork className="w-3.5 h-3.5 text-purple-500" />
+                  Connected Networks
+                </span>
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {connectedNetworkList.length} total
+                </span>
+              </div>
+
+              {connectedNetworkList.length === 0 ? (
+                <div className="py-8 text-center text-xs text-zinc-400 font-mono">
+                  No active network interfaces attached
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {connectedNetworkList.map(([netName, netInfo], idx) => (
+                    <div
+                      key={idx}
+                      className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-2.5 font-mono text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{netName}</span>
+                          <Badge variant="neutral" className="text-[9px] px-1 py-0">Connected</Badge>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/networks`)}
+                            className="h-6 px-1.5 text-[10px] gap-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                            title="View Networks"
+                          >
+                            <IconExternalLink className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={disconnectMutation.isPending}
+                            onClick={() => handleDisconnectNetwork(netName, netInfo.network_id || netName)}
+                            className="h-6 px-1.5 text-[10px] gap-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                            title="Disconnect from network"
+                          >
+                            <IconUnlink className="w-3 h-3" /> Disconnect
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                        <div>IP Address: <span className="text-zinc-800 dark:text-zinc-200 font-semibold">{netInfo.ip_address || '--'}</span></div>
+                        <div>Gateway: <span className="text-zinc-800 dark:text-zinc-200">{netInfo.gateway || '--'}</span></div>
+                        <div>MAC: <span className="text-zinc-800 dark:text-zinc-200">{netInfo.mac_address || '--'}</span></div>
+                        <div>Endpoint: <span className="text-zinc-800 dark:text-zinc-200 truncate">{netInfo.endpoint_id ? netInfo.endpoint_id.slice(0, 12) : '--'}</span></div>
+                        {netInfo.global_ipv6_address && (
+                          <div className="col-span-2">IPv6: <span className="text-zinc-800 dark:text-zinc-200">{netInfo.global_ipv6_address}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Port Forwardings */}
+            <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <IconExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                  Port Mappings & Exposure
+                </span>
+                <span className="text-[11px] font-mono text-zinc-400">
+                  {Object.keys(container.network_settings?.ports || {}).length} configured
+                </span>
+              </div>
+
+              {Object.keys(container.network_settings?.ports || {}).length === 0 ? (
+                <div className="py-8 text-center text-xs text-zinc-400 font-mono">
+                  No public ports exposed on host
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                  {Object.entries(container.network_settings?.ports || {}).map(([cPort, bindings], idx) => {
+                    const hasBinding = bindings && bindings.length > 0;
+                    const hostPort = hasBinding ? bindings[0].host_port : null;
+                    const hostIp = hasBinding ? bindings[0].host_ip || '0.0.0.0' : null;
+
+                    return (
+                      <div key={idx} className="py-2.5 flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-600 dark:text-zinc-400 font-bold">{cPort}</span>
+                          <span className="text-zinc-300 dark:text-zinc-600">→</span>
+                          {hasBinding ? (
+                            <span className="text-zinc-900 dark:text-zinc-100 font-semibold">
+                              {hostIp}:{hostPort}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 italic">Not bound to host</span>
+                          )}
+                        </div>
+
+                        {hasBinding && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(`http://${window.location.hostname}:${hostPort}`, `net-port-${idx}`)}
+                              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                              title="Copy URL"
+                            >
+                              {copiedKey === `net-port-${idx}` ? <IconCheck className="w-3 h-3 text-emerald-500" /> : <IconCopy className="w-3 h-3" />}
+                            </button>
+                            <a
+                              href={`http://${window.location.hostname}:${hostPort}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5"
+                            >
+                              Open <IconExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* DNS & Host Configuration Card */}
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 space-y-3 shadow-sm font-mono text-xs">
+            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-sans flex items-center gap-1.5">
+              <IconInfoCircle className="w-3.5 h-3.5 text-zinc-400" />
+              DNS & Host Network Configuration
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+              <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block font-sans">Hostname</span>
+                <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate block">
+                  {container.config?.hostname || '--'}
+                </span>
+              </div>
+              <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block font-sans">Primary IP</span>
+                <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate block">
+                  {container.network_settings?.ip_address || 'Host/None'}
+                </span>
+              </div>
+              <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block font-sans">Gateway</span>
+                <span className="text-zinc-800 dark:text-zinc-200 truncate block">
+                  {container.network_settings?.gateway || '--'}
+                </span>
+              </div>
+              <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 space-y-0.5">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block font-sans">MAC Address</span>
+                <span className="text-zinc-800 dark:text-zinc-200 truncate block">
+                  {container.network_settings?.mac_address || '--'}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Embedded Live Logs Tab */}
       {activeTab === 'logs' && (
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-0 overflow-hidden shadow-sm">
@@ -625,11 +917,14 @@ export function ContainerDetailView() {
 
       {/* Raw JSON Inspect Tab */}
       {activeTab === 'inspect' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-              Docker Engine JSON Specification
-            </span>
+        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
+            <div className="flex items-center gap-2">
+              <IconCode className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-mono">
+                Docker Engine JSON Specification
+              </span>
+            </div>
             <Button
               variant="surface"
               size="sm"
@@ -643,13 +938,70 @@ export function ContainerDetailView() {
               Copy JSON
             </Button>
           </div>
-          <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 overflow-auto max-h-[65vh]">
-            <pre className="text-xs font-mono text-zinc-800 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-              {JSON.stringify(container, null, 2)}
-            </pre>
-          </div>
+          <JsonViewer data={container} height="65vh" />
         </Card>
       )}
+
+      {/* Connect Container to Network Modal */}
+      <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
+        <DialogContent className="max-w-md p-0 bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
+          <DialogHeader className="px-6 py-4 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D]">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <IconNetwork className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  Connect to Network
+                </DialogTitle>
+                <DialogDescription className="text-xs text-zinc-500 mt-0.5">
+                  Attach container `{containerName}` to a Docker network.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                Select Network
+              </label>
+              {unconnectedNetworks.length === 0 ? (
+                <p className="text-xs text-zinc-500">This container is already attached to all available networks.</p>
+              ) : (
+                <Select value={selectedNetworkId} onValueChange={setSelectedNetworkId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Choose a network..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unconnectedNetworks.map((net) => (
+                      <SelectItem key={net.Id} value={net.Id}>
+                        {net.Name} ({net.Driver})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-[#1E1E24]">
+              <Button variant="ghost" size="sm" onClick={() => setIsConnectModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConnectNetwork}
+                disabled={!selectedNetworkId || connectMutation.isPending}
+                className="gap-1.5"
+              >
+                {connectMutation.isPending && <IconLoader2 className="w-3.5 h-3.5 animate-spin" />}
+                Connect Network
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

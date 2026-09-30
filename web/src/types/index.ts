@@ -54,6 +54,7 @@ export interface Container {
   state: string;
   status: string;
   ports: {
+    ip?: string;
     private_port: number;
     public_port?: number;
     type: string;

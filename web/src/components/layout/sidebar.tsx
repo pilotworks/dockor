@@ -181,7 +181,7 @@ export function Sidebar() {
               {isDockerConnected ? 'Ready' : 'Unavailable'}
             </span>
           </div>
-          <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 font-mono pt-1 border-t border-zinc-100 dark:border-zinc-850">
+          <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 font-mono pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
             <span>Socket API</span>
             <span>v1.45</span>
           </div>

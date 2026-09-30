@@ -13,6 +13,7 @@ import {
   IconTrash,
   IconCircleFilled,
   IconMaximize,
+  IconLoader2,
 } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -41,18 +42,22 @@ export function ContainersView() {
   const [terminalContainer, setTerminalContainer] = useState<{ id: string; name: string } | null>(null);
   const [logsContainer, setLogsContainer] = useState<{ id: string; name: string } | null>(null);
   const [statsContainer, setStatsContainer] = useState<{ id: string; name: string } | null>(null);
+  const [loadingAction, setLoadingAction] = useState<{ id: string; action: 'start' | 'stop' | 'restart' } | null>(null);
 
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart', name: string) => {
+    setLoadingAction({ id, action });
     try {
       await actionMutation.mutateAsync({ id, action });
       toast.success(`Container ${name} ${action}ed`);
     } catch (err: any) {
       toast.error(`Failed to ${action} container`, { description: err.message });
+    } finally {
+      setLoadingAction(null);
     }
   };
 
   const filtered = containers.filter((c) => {
-    const isRunning = c.state === 'running';
+    const isRunning = c.state?.toLowerCase() === 'running';
     if (filterState === 'running' && !isRunning) return false;
     if (filterState === 'stopped' && isRunning) return false;
     if (search) {
@@ -65,7 +70,7 @@ export function ContainersView() {
     return true;
   });
 
-  const totalRunning = containers.filter((c) => c.state === 'running').length;
+  const totalRunning = containers.filter((c) => c.state?.toLowerCase() === 'running').length;
 
   return (
     <div className="space-y-4">
@@ -186,7 +191,7 @@ export function ContainersView() {
                               isRunning ? 'text-zinc-900 dark:text-zinc-200' : 'text-zinc-500 dark:text-zinc-500'
                             )}
                           >
-                            {isRunning ? 'Running' : 'Exited'}
+                            {isRunning ? 'Running' : 'Stopped'}
                           </span>
                         </div>
                       </td>
@@ -215,23 +220,32 @@ export function ContainersView() {
                       {/* Ports */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         {c.ports && c.ports.filter((p) => p.public_port).length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 max-w-[320px]">
                             {c.ports
                               .filter((p) => p.public_port)
-                              .map((p, idx) => (
-                                <a
-                                  key={idx}
-                                  href={`http://localhost:${p.public_port}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/40 transition-colors"
-                                >
-                                  <span>
-                                    {p.public_port}:{p.private_port}
-                                  </span>
-                                  <IconExternalLink className="w-2.5 h-2.5" />
-                                </a>
-                              ))}
+                              .map((p, idx) => {
+                                const ipDisplay = p.ip ? (p.ip === '::' ? '[::]' : p.ip) : '';
+                                const host = p.ip && p.ip !== '0.0.0.0' && p.ip !== '::' ? p.ip : 'localhost';
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={`http://${host}:${p.public_port}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/40 transition-colors"
+                                  >
+                                    <span>
+                                      {ipDisplay && (
+                                        <span className="text-zinc-500 dark:text-zinc-400">
+                                          {ipDisplay}:
+                                        </span>
+                                      )}
+                                      {p.public_port}:{p.private_port}
+                                    </span>
+                                    <IconExternalLink className="w-2.5 h-2.5" />
+                                  </a>
+                                );
+                              })}
                           </div>
                         ) : (
                           <span className="text-zinc-400 dark:text-zinc-600 text-[11px]">—</span>
@@ -286,32 +300,42 @@ export function ContainersView() {
                           <Button
                             variant="surface"
                             size="icon-sm"
+                            disabled={!isRunning || loadingAction?.id === c.id}
                             onClick={() => handleAction(c.id, 'restart', containerName)}
                             title="Restart Container"
                           >
-                            <IconRotateClockwise className="w-3.5 h-3.5 text-zinc-400" />
+                            {loadingAction?.id === c.id && loadingAction.action === 'restart' ? (
+                              <IconLoader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                            ) : (
+                              <IconRotateClockwise className="w-3.5 h-3.5 text-zinc-400" />
+                            )}
                           </Button>
 
                           <Button
                             variant={isRunning ? 'surface' : 'primary'}
                             size="icon-sm"
+                            disabled={loadingAction?.id === c.id}
                             onClick={() =>
                               handleAction(c.id, isRunning ? 'stop' : 'start', containerName)
                             }
                             title={isRunning ? 'Stop Container' : 'Start Container'}
                           >
-                            <IconPower
-                              className={cn(
-                                'w-3.5 h-3.5',
-                                isRunning ? 'text-red-400' : 'text-white'
-                              )}
-                            />
+                            {loadingAction?.id === c.id && (loadingAction.action === 'start' || loadingAction.action === 'stop') ? (
+                              <IconLoader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                            ) : (
+                              <IconPower
+                                className={cn(
+                                  'w-3.5 h-3.5',
+                                  isRunning ? 'text-red-400' : 'text-white'
+                                )}
+                              />
+                            )}
                           </Button>
 
                           {/* 3-Dots Dropdown */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon-sm">
+                              <Button variant="ghost" size="icon-sm" disabled={loadingAction?.id === c.id}>
                                 <IconDotsVertical className="w-3.5 h-3.5 text-zinc-400" />
                               </Button>
                             </DropdownMenuTrigger>

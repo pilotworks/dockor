@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { toast } from 'sonner';
+import { JsonViewer } from '../editor/json-viewer';
 
 const SYSTEM_NETWORKS = new Set(['bridge', 'host', 'none']);
 
@@ -595,11 +596,14 @@ export function NetworkDetailView() {
 
       {/* Tab 5: Raw JSON Inspect */}
       {activeTab === 'inspect' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-              Docker Engine Network Inspect JSON
-            </span>
+        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
+            <div className="flex items-center gap-2">
+              <IconCode className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-mono">
+                Docker Engine Network Inspect JSON
+              </span>
+            </div>
             <Button
               variant="surface"
               size="sm"
@@ -614,11 +618,7 @@ export function NetworkDetailView() {
               Copy JSON
             </Button>
           </div>
-          <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 overflow-auto max-h-[65vh]">
-            <pre className="text-xs font-mono text-zinc-800 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-              {JSON.stringify(network, null, 2)}
-            </pre>
-          </div>
+          <JsonViewer data={network} height="65vh" />
         </Card>
       )}
 

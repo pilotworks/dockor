@@ -1,4 +1,4 @@
-import { Template, Stack, Container, Node } from '../types';
+import { Template, Stack, Container, Node, ContainerDetail, ContainerPortBinding, ContainerNetworkInfo, ContainerMount } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -8,6 +8,113 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new Error(errorBody.error || `HTTP error ${res.status}`);
   }
   return res.json();
+}
+
+export function normalizeContainerDetail(raw: any): ContainerDetail {
+  if (!raw) return raw;
+  const state = raw.state || raw.State || {};
+  const config = raw.config || raw.Config || {};
+  const networkSettings = raw.network_settings || raw.NetworkSettings || {};
+  const hostConfig = raw.host_config || raw.HostConfig || {};
+
+  // Normalize ports
+  const rawPorts = networkSettings.ports || networkSettings.Ports || {};
+  const ports: Record<string, ContainerPortBinding[] | null> = {};
+  for (const [key, val] of Object.entries(rawPorts)) {
+    if (Array.isArray(val)) {
+      ports[key] = val.map((b: any) => ({
+        host_ip: b.host_ip || b.HostIp || '',
+        host_port: b.host_port || b.HostPort || '',
+      }));
+    } else {
+      ports[key] = null;
+    }
+  }
+
+  // Normalize networks
+  const rawNetworks = networkSettings.networks || networkSettings.Networks || {};
+  const networks: Record<string, ContainerNetworkInfo> = {};
+  for (const [netName, netVal] of Object.entries(rawNetworks)) {
+    const nv = (netVal || {}) as any;
+    networks[netName] = {
+      network_id: nv.network_id || nv.NetworkID || '',
+      endpoint_id: nv.endpoint_id || nv.EndpointID || '',
+      gateway: nv.gateway || nv.Gateway || '',
+      ip_address: nv.ip_address || nv.IPAddress || '',
+      ip_prefix_len: nv.ip_prefix_len ?? nv.IPPrefixLen ?? 0,
+      ipv6_gateway: nv.ipv6_gateway || nv.IPv6Gateway || '',
+      global_ipv6_address: nv.global_ipv6_address || nv.GlobalIPv6Address || '',
+      mac_address: nv.mac_address || nv.MacAddress || '',
+    };
+  }
+
+  // Normalize mounts
+  const rawMounts = raw.mounts || raw.Mounts || [];
+  const mounts: ContainerMount[] = (Array.isArray(rawMounts) ? rawMounts : []).map((m: any) => ({
+    type: m.type || m.Type || '',
+    name: m.name || m.Name,
+    source: m.source || m.Source || '',
+    destination: m.destination || m.Destination || '',
+    driver: m.driver || m.Driver,
+    mode: m.mode || m.Mode || '',
+    rw: m.rw ?? m.RW ?? false,
+    propagation: m.propagation || m.Propagation,
+  }));
+
+  return {
+    id: raw.id || raw.Id || raw.ID || '',
+    name: raw.name || raw.Name || '',
+    created: raw.created || raw.Created || '',
+    path: raw.path || raw.Path || '',
+    args: raw.args || raw.Args || [],
+    image: raw.image || raw.Image || '',
+    restart_count: raw.restart_count ?? raw.RestartCount ?? 0,
+    driver: raw.driver || raw.Driver || '',
+    platform: raw.platform || raw.Platform || '',
+    mounts,
+    state: {
+      status: state.status || state.Status || 'unknown',
+      running: Boolean(state.running ?? state.Running ?? false),
+      paused: Boolean(state.paused ?? state.Paused ?? false),
+      restarting: Boolean(state.restarting ?? state.Restarting ?? false),
+      oom_killed: Boolean(state.oom_killed ?? state.OOMKilled ?? false),
+      dead: Boolean(state.dead ?? state.Dead ?? false),
+      pid: state.pid ?? state.Pid ?? 0,
+      exit_code: state.exit_code ?? state.ExitCode ?? 0,
+      error: state.error || state.Error || '',
+      started_at: state.started_at || state.StartedAt || '',
+      finished_at: state.finished_at || state.FinishedAt || '',
+    },
+    config: {
+      hostname: config.hostname || config.Hostname,
+      domainname: config.domainname || config.Domainname,
+      user: config.user || config.User,
+      env: config.env || config.Env || [],
+      cmd: config.cmd || config.Cmd || [],
+      image: config.image || config.Image || '',
+      working_dir: config.working_dir || config.WorkingDir,
+      entrypoint: config.entrypoint || config.Entrypoint || [],
+      labels: config.labels || config.Labels || {},
+    },
+    network_settings: {
+      ip_address: networkSettings.ip_address || networkSettings.IPAddress || '',
+      gateway: networkSettings.gateway || networkSettings.Gateway,
+      mac_address: networkSettings.mac_address || networkSettings.MacAddress,
+      ports,
+      networks,
+    },
+    host_config: {
+      binds: hostConfig.binds || hostConfig.Binds,
+      network_mode: hostConfig.network_mode || hostConfig.NetworkMode,
+      restart_policy: hostConfig.restart_policy || (hostConfig.RestartPolicy ? {
+        name: hostConfig.RestartPolicy.Name,
+        maximum_retry_count: hostConfig.RestartPolicy.MaximumRetryCount,
+      } : undefined),
+      memory: hostConfig.memory ?? hostConfig.Memory,
+      nano_cpus: hostConfig.nano_cpus ?? hostConfig.NanoCpus,
+      cpu_shares: hostConfig.cpu_shares ?? hostConfig.CpuShares,
+    },
+  };
 }
 
 export const api = {
@@ -47,8 +154,8 @@ export const api = {
     fetch(`${API_BASE}/stacks/${id}?delete_volumes=${deleteVolumes}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
 
   // Containers
-  getContainers: () => fetch(`${API_BASE}/containers`).then(handleResponse<Container[]>),
-  getContainer: (id: string) => fetch(`${API_BASE}/containers/${id}`).then(handleResponse<import('../types').ContainerDetail>),
+  getContainers: () => fetch(`${API_BASE}/containers?all=true`).then(handleResponse<Container[]>),
+  getContainer: (id: string) => fetch(`${API_BASE}/containers/${id}`).then(handleResponse<any>).then(normalizeContainerDetail),
   startContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/start`, { method: 'POST' }),
   stopContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/stop`, { method: 'POST' }),
   restartContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/restart`, { method: 'POST' }),

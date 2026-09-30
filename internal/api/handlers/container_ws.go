@@ -41,11 +41,14 @@ func (w *wsWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-type ExecResizeMessage struct {
+type ExecMessage struct {
 	Type string `json:"type"`
+	Data string `json:"data"`
 	Cols uint   `json:"cols"`
 	Rows uint   `json:"rows"`
 }
+
+type ExecResizeMessage = ExecMessage
 
 // ContainerLogs streams container logs via WebSocket or plain HTTP
 func (h *APIHandler) ContainerLogs(w http.ResponseWriter, r *http.Request) {
@@ -190,15 +193,22 @@ func (h *APIHandler) ContainerExec(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if msgType == websocket.TextMessage {
-			// Check if message is a resize JSON command
-			var resizeMsg ExecResizeMessage
-			if err := json.Unmarshal(msg, &resizeMsg); err == nil && resizeMsg.Type == "resize" && resizeMsg.Cols > 0 && resizeMsg.Rows > 0 {
-				_ = h.dockerSvc.ExecResize(ctx, execID, resizeMsg.Rows, resizeMsg.Cols)
-				continue
+			var execMsg ExecMessage
+			if err := json.Unmarshal(msg, &execMsg); err == nil {
+				if execMsg.Type == "resize" && execMsg.Cols > 0 && execMsg.Rows > 0 {
+					_ = h.dockerSvc.ExecResize(ctx, execID, execMsg.Rows, execMsg.Cols)
+					continue
+				}
+				if execMsg.Type == "input" {
+					if _, err := hijacked.Conn.Write([]byte(execMsg.Data)); err != nil {
+						break
+					}
+					continue
+				}
 			}
 		}
 
-		// Forward input bytes to container stdin
+		// Forward raw bytes (binary message or non-JSON text) to container stdin
 		if _, err := hijacked.Conn.Write(msg); err != nil {
 			break
 		}

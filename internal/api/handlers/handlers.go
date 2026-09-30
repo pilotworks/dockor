@@ -474,7 +474,7 @@ func (h *APIHandler) ListContainers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	all := r.URL.Query().Get("all") == "true"
+	all := r.URL.Query().Get("all") != "false"
 	containers, err := h.dockerSvc.ListContainers(r.Context(), all)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
