@@ -42,6 +42,7 @@ export interface Stack {
   template_id?: string;
   compose_yaml: string;
   env_vars?: Record<string, string>;
+  webhook_token?: string;
   created_at: string;
   updated_at: string;
 }

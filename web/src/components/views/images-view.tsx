@@ -20,6 +20,8 @@ import { Input } from '../ui/input';
 import { PullImageModal } from '../images/pull-image-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { api } from '../../lib/api';
+import { cn } from '../../lib/utils';
 
 export function ImagesView() {
   const { data: images = [], isLoading, refetch, isFetching } = useImages();
@@ -30,6 +32,64 @@ export function ImagesView() {
   const [filterMode, setFilterMode] = useState<'all' | 'in_use' | 'unused' | 'dangling'>('all');
   const [isPullOpen, setIsPullOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((img) => img.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirmDialog({
+      title: `Delete ${selectedIds.size} Image(s)`,
+      description: `Are you sure you want to delete ${selectedIds.size} selected image(s)? This will force remove the images from your Docker Engine.`,
+      confirmText: 'Delete Selected Images',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsBatchProcessing(true);
+    const toastId = toast.loading(`Deleting ${selectedIds.size} image(s)...`);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await api.deleteImage(id, true);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setIsBatchProcessing(false);
+    setSelectedIds(new Set());
+    refetch();
+    toast.dismiss(toastId);
+
+    if (failCount === 0) {
+      toast.success(`Successfully deleted ${successCount} image(s)`);
+    } else {
+      toast.warning(`Deleted ${successCount} image(s), ${failCount} failed (may be in-use)`);
+    }
+  };
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -267,6 +327,18 @@ export function ImagesView() {
               Dangling ({totalDangling})
             </button>
           </div>
+
+          {totalDangling > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handlePrune(false)}
+              className="h-7 text-xs text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1.5 px-2.5"
+            >
+              <IconEraser className="w-3.5 h-3.5" />
+              <span>Clean Dangling ({totalDangling})</span>
+            </Button>
+          )}
         </div>
 
         {/* Search */}
@@ -287,6 +359,14 @@ export function ImagesView() {
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-medium">
               <tr>
+                <th className="py-2.5 px-3 w-9 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
+                  />
+                </th>
                 <th className="py-2.5 px-4 font-semibold">Repository & Tags</th>
                 <th className="py-2.5 px-3 font-semibold">Image ID</th>
                 <th className="py-2.5 px-3 font-semibold">Size</th>
@@ -299,13 +379,13 @@ export function ImagesView() {
             <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-400">
+                  <td colSpan={8} className="py-12 text-center text-zinc-400">
                     Loading image manifests...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center">
+                  <td colSpan={8} className="py-12 text-center">
                     <IconDisc className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
                     <p className="text-zinc-500 font-medium">No images found</p>
                     <p className="text-zinc-400 text-[11px] mt-0.5">
@@ -317,12 +397,24 @@ export function ImagesView() {
                 filtered.map((img) => {
                   const hasTags = img.repo_tags && img.repo_tags.length > 0 && img.repo_tags[0] !== '<none>:<none>';
                   const primaryTag = hasTags ? img.repo_tags[0] : '<none>:<none>';
+                  const isSelected = selectedIds.has(img.id);
 
                   return (
                     <tr
                       key={img.id}
-                      className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors group"
+                      className={cn(
+                        'hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors group',
+                        isSelected && 'bg-blue-50/50 dark:bg-blue-950/20'
+                      )}
                     >
+                      <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelect(img.id, e as any)}
+                          className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
+                        />
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Link
@@ -428,6 +520,34 @@ export function ImagesView() {
           </table>
         </div>
       </div>
+
+      {/* Floating Batch Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 dark:bg-[#18181D]/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl shadow-2xl border border-zinc-700/70 dark:border-zinc-700/60 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <Badge variant="info" className="text-xs px-2.5 py-0.5">
+            {selectedIds.size} Selected
+          </Badge>
+          <div className="h-4 w-px bg-zinc-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isBatchProcessing}
+            onClick={handleBatchDelete}
+            className="text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 gap-1.5 h-8 px-2.5"
+          >
+            <IconTrash className="w-3.5 h-3.5" /> Delete Selected
+          </Button>
+          <div className="h-4 w-px bg-zinc-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-zinc-400 hover:text-white h-8 px-2"
+          >
+            Deselect
+          </Button>
+        </div>
+      )}
 
       {/* Pull Modal */}
       <PullImageModal

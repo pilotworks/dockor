@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"time"
@@ -84,9 +86,15 @@ func (r *Repository) ListNodes(ctx context.Context) ([]models.Node, error) {
 	return nodes, rows.Err()
 }
 
+func generateToken() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
 // Stacks
 func (r *Repository) ListStacks(ctx context.Context, nodeID string) ([]models.Stack, error) {
-	query := "SELECT id, name, node_id, status, template_id, compose_yaml, env_vars, created_at, updated_at FROM stacks"
+	query := "SELECT id, name, node_id, status, template_id, compose_yaml, env_vars, COALESCE(webhook_token, ''), created_at, updated_at FROM stacks"
 	var args []interface{}
 	if nodeID != "" {
 		query += " WHERE node_id = ?"
@@ -105,7 +113,7 @@ func (r *Repository) ListStacks(ctx context.Context, nodeID string) ([]models.St
 		var s models.Stack
 		var envStr sql.NullString
 		var tmplID sql.NullString
-		err := rows.Scan(&s.ID, &s.Name, &s.NodeID, &s.Status, &tmplID, &s.ComposeYAML, &envStr, &s.CreatedAt, &s.UpdatedAt)
+		err := rows.Scan(&s.ID, &s.Name, &s.NodeID, &s.Status, &tmplID, &s.ComposeYAML, &envStr, &s.WebhookToken, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -125,21 +133,24 @@ func (r *Repository) CreateStack(ctx context.Context, stack *models.Stack) error
 	now := time.Now().UTC()
 	stack.CreatedAt = now
 	stack.UpdatedAt = now
+	if stack.WebhookToken == "" {
+		stack.WebhookToken = generateToken()
+	}
 
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO stacks (id, name, node_id, status, template_id, compose_yaml, env_vars, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		stack.ID, stack.Name, stack.NodeID, string(stack.Status), stack.TemplateID, stack.ComposeYAML, string(envBytes), stack.CreatedAt, stack.UpdatedAt,
+		INSERT INTO stacks (id, name, node_id, status, template_id, compose_yaml, env_vars, webhook_token, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		stack.ID, stack.Name, stack.NodeID, string(stack.Status), stack.TemplateID, stack.ComposeYAML, string(envBytes), stack.WebhookToken, stack.CreatedAt, stack.UpdatedAt,
 	)
 	return err
 }
 
 func (r *Repository) GetStack(ctx context.Context, id string) (*models.Stack, error) {
-	row := r.db.QueryRowContext(ctx, "SELECT id, name, node_id, status, template_id, compose_yaml, env_vars, created_at, updated_at FROM stacks WHERE id = ?", id)
+	row := r.db.QueryRowContext(ctx, "SELECT id, name, node_id, status, template_id, compose_yaml, env_vars, COALESCE(webhook_token, ''), created_at, updated_at FROM stacks WHERE id = ?", id)
 	var s models.Stack
 	var envStr sql.NullString
 	var tmplID sql.NullString
-	err := row.Scan(&s.ID, &s.Name, &s.NodeID, &s.Status, &tmplID, &s.ComposeYAML, &envStr, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(&s.ID, &s.Name, &s.NodeID, &s.Status, &tmplID, &s.ComposeYAML, &envStr, &s.WebhookToken, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -168,6 +179,12 @@ func (r *Repository) UpdateStack(ctx context.Context, stack *models.Stack) error
 	return err
 }
 
+func (r *Repository) UpdateStackWebhookToken(ctx context.Context, id string, token string) error {
+	now := time.Now().UTC()
+	_, err := r.db.ExecContext(ctx, "UPDATE stacks SET webhook_token = ?, updated_at = ? WHERE id = ?", token, now, id)
+	return err
+}
+
 func (r *Repository) UpdateStackStatus(ctx context.Context, id string, status models.StackStatus) error {
 	now := time.Now().UTC()
 	_, err := r.db.ExecContext(ctx, "UPDATE stacks SET status = ?, updated_at = ? WHERE id = ?", string(status), now, id)
@@ -176,6 +193,11 @@ func (r *Repository) UpdateStackStatus(ctx context.Context, id string, status mo
 
 func (r *Repository) DeleteStack(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM stacks WHERE id = ?", id)
+	return err
+}
+
+func (r *Repository) DeleteNode(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM nodes WHERE id = ? AND is_local = 0", id)
 	return err
 }
 

@@ -63,6 +63,7 @@ type Stack struct {
 	TemplateID  string            `json:"template_id,omitempty"`
 	ComposeYAML string            `json:"compose_yaml"`
 	EnvVars     map[string]string `json:"env_vars,omitempty"`
+	WebhookToken string            `json:"webhook_token,omitempty"`
 	CreatedAt   time.Time         `json:"created_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 }

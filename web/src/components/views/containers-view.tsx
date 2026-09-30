@@ -28,6 +28,8 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { api } from '../../lib/api';
+import { confirmDialog } from '../../stores/use-dialog-store';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { ContainerStatsModal } from '../containers/container-stats-modal';
@@ -36,7 +38,7 @@ import { CreateContainerModal } from '../containers/create-container-modal';
 
 export function ContainersView() {
   const navigate = useNavigate();
-  const { data: containers = [], isLoading } = useContainers();
+  const { data: containers = [], isLoading, refetch } = useContainers();
   const actionMutation = useContainerAction();
   const [filterState, setFilterState] = useState<'all' | 'running' | 'stopped'>('all');
   const [search, setSearch] = useState('');
@@ -47,6 +49,9 @@ export function ContainersView() {
   const [statsContainer, setStatsContainer] = useState<{ id: string; name: string } | null>(null);
   const [loadingAction, setLoadingAction] = useState<{ id: string; action: 'start' | 'stop' | 'restart' } | null>(null);
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
   const handleAction = async (id: string, action: 'start' | 'stop' | 'restart', name: string) => {
     setLoadingAction({ id, action });
     try {
@@ -56,6 +61,66 @@ export function ContainersView() {
       toast.error(`Failed to ${action} container`, { description: err.message });
     } finally {
       setLoadingAction(null);
+    }
+  };
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length && filtered.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((c) => c.id)));
+    }
+  };
+
+  const handleBatchAction = async (action: 'start' | 'stop' | 'restart' | 'delete') => {
+    if (selectedIds.size === 0) return;
+
+    if (action === 'delete') {
+      const confirmed = await confirmDialog({
+        title: `Delete ${selectedIds.size} Container(s)`,
+        description: `Are you sure you want to permanently delete ${selectedIds.size} selected container(s)? This will force remove them from your host.`,
+        confirmText: 'Delete Containers',
+        variant: 'destructive',
+      });
+      if (!confirmed) return;
+    }
+
+    setIsBatchProcessing(true);
+    const toastId = toast.loading(`Performing ${action} on ${selectedIds.size} container(s)...`);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        if (action === 'start') await api.startContainer(id);
+        else if (action === 'stop') await api.stopContainer(id);
+        else if (action === 'restart') await api.restartContainer(id);
+        else if (action === 'delete') await api.deleteContainer(id, true);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setIsBatchProcessing(false);
+    setSelectedIds(new Set());
+    refetch();
+    toast.dismiss(toastId);
+
+    if (failCount === 0) {
+      toast.success(`Successfully ${action}ed ${successCount} container(s)`);
+    } else {
+      toast.warning(`Finished ${action}: ${successCount} succeeded, ${failCount} failed`);
     }
   };
 
@@ -148,6 +213,14 @@ export function ContainersView() {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0C0C0F] text-[10px] uppercase font-semibold text-zinc-500 dark:text-zinc-400 tracking-wider">
+                <th className="py-3 px-3 w-9 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
+                  />
+                </th>
                 <th className="py-3 px-4 w-32">Status</th>
                 <th className="py-3 px-4">Container</th>
                 <th className="py-3 px-4">Image</th>
@@ -160,7 +233,7 @@ export function ContainersView() {
             <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500 text-xs">
+                  <td colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
                     Loading containers from Docker Engine...
                   </td>
                 </tr>
@@ -168,7 +241,7 @@ export function ContainersView() {
 
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center">
+                  <td colSpan={7} className="py-16 text-center">
                     <IconBox className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
                     <p className="text-zinc-800 dark:text-zinc-400 font-medium">No containers found</p>
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-0.5">
@@ -183,12 +256,25 @@ export function ContainersView() {
                   const containerName = c.names?.[0]?.replace(/^\//, '') || c.id.substring(0, 12);
                   const isRunning = c.state === 'running';
                   const shortId = c.id.substring(0, 10);
+                  const isSelected = selectedIds.has(c.id);
 
                   return (
                     <tr
                       key={c.id}
-                      className="hover:bg-zinc-100/80 dark:hover:bg-zinc-800/50 transition-colors group select-text"
+                      className={cn(
+                        'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/50 transition-colors group select-text',
+                        isSelected && 'bg-blue-50/50 dark:bg-blue-950/20'
+                      )}
                     >
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => toggleSelect(c.id, e as any)}
+                          className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
+                        />
+                      </td>
                       {/* Status */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -397,6 +483,61 @@ export function ContainersView() {
           </table>
         </div>
       </div>
+
+      {/* Floating Batch Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 dark:bg-[#18181D]/95 backdrop-blur-md text-white px-5 py-2.5 rounded-2xl shadow-2xl border border-zinc-700/70 dark:border-zinc-700/60 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <Badge variant="info" className="text-xs px-2.5 py-0.5">
+            {selectedIds.size} Selected
+          </Badge>
+          <div className="h-4 w-px bg-zinc-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isBatchProcessing}
+            onClick={() => handleBatchAction('start')}
+            className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 gap-1.5 h-8 px-2.5"
+          >
+            <IconPower className="w-3.5 h-3.5" /> Start
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isBatchProcessing}
+            onClick={() => handleBatchAction('stop')}
+            className="text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-950/40 gap-1.5 h-8 px-2.5"
+          >
+            <IconPower className="w-3.5 h-3.5" /> Stop
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isBatchProcessing}
+            onClick={() => handleBatchAction('restart')}
+            className="text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 gap-1.5 h-8 px-2.5"
+          >
+            <IconRotateClockwise className="w-3.5 h-3.5" /> Restart
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={isBatchProcessing}
+            onClick={() => handleBatchAction('delete')}
+            className="text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 gap-1.5 h-8 px-2.5"
+          >
+            <IconTrash className="w-3.5 h-3.5" /> Delete
+          </Button>
+          <div className="h-4 w-px bg-zinc-700" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-zinc-400 hover:text-white h-8 px-2"
+          >
+            Deselect
+          </Button>
+        </div>
+      )}
 
       {/* Terminal Modal */}
       {terminalContainer && (

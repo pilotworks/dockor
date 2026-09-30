@@ -46,8 +46,9 @@ import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { api } from '../../lib/api';
 
-type ActiveTab = 'services' | 'compose' | 'env' | 'logs';
+type ActiveTab = 'services' | 'compose' | 'env' | 'logs' | 'webhook';
 
 export function StackDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -84,6 +85,53 @@ export function StackDetailView() {
   // Env tab state
   const [showSecretEnv, setShowSecretEnv] = useState<Record<string, boolean>>({});
   const [envFilter, setEnvFilter] = useState('');
+
+  // Webhook tab state
+  const [webhookToken, setWebhookToken] = useState<string>(stack?.webhook_token || '');
+  const [isRegeneratingToken, setIsRegeneratingToken] = useState(false);
+  const [isTriggeringWebhook, setIsTriggeringWebhook] = useState(false);
+
+  useEffect(() => {
+    if (stack?.webhook_token) {
+      setWebhookToken(stack.webhook_token);
+    }
+  }, [stack?.webhook_token]);
+
+  const handleRegenerateToken = async () => {
+    const confirmed = await confirmDialog({
+      title: 'Regenerate Webhook Secret',
+      description: 'This will invalidate the previous webhook URL. Any existing CI/CD pipelines will need to be updated with the new URL. Continue?',
+      confirmText: 'Regenerate Token',
+      variant: 'warning',
+    });
+    if (!confirmed || !id) return;
+
+    setIsRegeneratingToken(true);
+    try {
+      const res = await api.regenerateStackWebhookToken(id);
+      setWebhookToken(res.webhook_token);
+      refetch();
+      toast.success('Webhook token regenerated successfully');
+    } catch (err: any) {
+      toast.error('Failed to regenerate token: ' + err.message);
+    } finally {
+      setIsRegeneratingToken(false);
+    }
+  };
+
+  const handleTriggerWebhook = async () => {
+    if (!id || !webhookToken) return;
+    setIsTriggeringWebhook(true);
+    try {
+      await api.redeployStackWebhook(id, webhookToken);
+      toast.success('Redeploy webhook triggered! Stack is pulling and updating in background.');
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to trigger webhook: ' + err.message);
+    } finally {
+      setIsTriggeringWebhook(false);
+    }
+  };
 
   // Sync YAML when stack data loads
   useEffect(() => {
@@ -492,6 +540,18 @@ export function StackDetailView() {
           <IconFileText className="w-4 h-4" />
           <span>Aggregated Logs</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('webhook')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
+            activeTab === 'webhook'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <IconWebhook className="w-4 h-4" />
+          <span>CI/CD Webhook</span>
+        </button>
       </div>
 
       {/* Tab 1: Services & Containers */}
@@ -868,6 +928,141 @@ export function StackDetailView() {
             <div ref={logsBottomRef} />
           </div>
         </Card>
+      )}
+
+      {/* Tab 5: CI/CD Webhook */}
+      {activeTab === 'webhook' && (
+        <div className="space-y-5">
+          <Card className="p-6 bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-[#1E1E24] pb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                  <IconWebhook className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Automated Redeploy Webhook
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Trigger zero-downtime stack updates and image re-pulls directly from your CI/CD pipelines.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isRegeneratingToken}
+                  onClick={handleRegenerateToken}
+                  className="text-xs h-8 gap-1.5"
+                >
+                  <IconRotateClockwise className={`w-3.5 h-3.5 ${isRegeneratingToken ? 'animate-spin' : ''}`} />
+                  <span>Regenerate Token</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={isTriggeringWebhook || !webhookToken}
+                  onClick={handleTriggerWebhook}
+                  className="text-xs h-8 gap-1.5"
+                >
+                  {isTriggeringWebhook ? (
+                    <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <IconPlayerPlay className="w-3.5 h-3.5" />
+                  )}
+                  <span>Test Trigger Webhook</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Webhook Endpoint Box */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Webhook Endpoint URL
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 font-mono text-xs px-3.5 py-2.5 rounded-lg bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#22222A] text-zinc-800 dark:text-zinc-200 truncate select-all">
+                  {`${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=${webhookToken || '...'}`}
+                </div>
+                <Button
+                  variant="surface"
+                  size="sm"
+                  onClick={() =>
+                    handleCopy(
+                      `${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=${webhookToken}`,
+                      'Webhook URL'
+                    )
+                  }
+                  className="gap-1.5 h-9 shrink-0 text-xs"
+                >
+                  {copiedKey === 'Webhook URL' ? (
+                    <IconCheck className="w-4 h-4 text-emerald-500" />
+                  ) : (
+                    <IconCopy className="w-4 h-4" />
+                  )}
+                  <span>Copy URL</span>
+                </Button>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                Send an HTTP <code>POST</code> request to this endpoint to automatically trigger <code>docker compose pull</code> and <code>docker compose up -d</code>.
+              </p>
+            </div>
+
+            {/* Integration Guides */}
+            <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-[#1E1E24]">
+              <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                CI/CD Integration Examples
+              </h4>
+
+              {/* cURL */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">cURL (Command Line or Script)</span>
+                  <button
+                    onClick={() =>
+                      handleCopy(
+                        `curl -X POST "${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=${webhookToken}"`,
+                        'curl'
+                      )
+                    }
+                    className="text-blue-500 hover:text-blue-600 flex items-center gap-1 text-[11px]"
+                  >
+                    <IconCopy className="w-3 h-3" /> Copy
+                  </button>
+                </div>
+                <pre className="p-3 bg-[#0A0A0E] border border-[#22222A] rounded-lg font-mono text-[11px] text-zinc-300 overflow-x-auto select-all">
+                  {`curl -X POST "${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=${webhookToken}"`}
+                </pre>
+              </div>
+
+              {/* GitHub Actions */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">GitHub Actions Workflow</span>
+                  <button
+                    onClick={() =>
+                      handleCopy(
+                        `- name: Trigger Dockor Redeploy\n  run: |\n    curl -f -X POST "${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=\${{ secrets.DOCKOR_WEBHOOK_TOKEN }}"`,
+                        'gh-actions'
+                      )
+                    }
+                    className="text-blue-500 hover:text-blue-600 flex items-center gap-1 text-[11px]"
+                  >
+                    <IconCopy className="w-3 h-3" /> Copy
+                  </button>
+                </div>
+                <pre className="p-3 bg-[#0A0A0E] border border-[#22222A] rounded-lg font-mono text-[11px] text-zinc-300 overflow-x-auto select-all">
+{`- name: Trigger Dockor Redeploy
+  run: |
+    curl -f -X POST "${window.location.origin}/api/v1/stacks/${stack.id}/webhook?token=\${{ secrets.DOCKOR_WEBHOOK_TOKEN }}"`}
+                </pre>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Quick Modals */}

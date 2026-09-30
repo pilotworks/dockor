@@ -14,6 +14,9 @@ import {
   IconFileText,
   IconServer,
   IconSearch,
+  IconTag,
+  IconUpload,
+  IconPlus,
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -22,6 +25,8 @@ import { Input } from '../ui/input';
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { TagImageModal } from '../images/tag-image-modal';
+import { PushImageModal } from '../images/push-image-modal';
 
 type ActiveTab = 'overview' | 'containers' | 'env' | 'layers' | 'inspect';
 
@@ -37,6 +42,8 @@ export function ImageDetailView() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTagOpen, setIsTagOpen] = useState(false);
+  const [isPushOpen, setIsPushOpen] = useState(false);
   const [envSearch, setEnvSearch] = useState('');
 
   // Find corresponding summary item for container attachments
@@ -195,6 +202,26 @@ export function ImageDetailView() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setIsTagOpen(true)}
+              className="gap-1.5 text-xs text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/60 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+            >
+              <IconTag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Add Tag</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPushOpen(true)}
+              className="gap-1.5 text-xs text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+            >
+              <IconUpload className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Push</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => refetch()}
               disabled={isFetching}
               className="gap-1.5"
@@ -345,9 +372,20 @@ export function ImageDetailView() {
 
           {/* Repo Tags */}
           <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs">
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block mb-2">
-              Repository Tags
-            </span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                Repository Tags
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsTagOpen(true)}
+                className="h-7 px-2.5 text-[11px] gap-1 rounded-lg"
+              >
+                <IconPlus className="w-3 h-3 text-purple-500" />
+                <span>Add Tag</span>
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {tags.length > 0 ? (
                 tags.map((t) => (
@@ -605,6 +643,24 @@ export function ImageDetailView() {
           <JsonViewer data={inspectData} />
         </div>
       )}
+
+      {/* Modals */}
+      <TagImageModal
+        isOpen={isTagOpen}
+        onClose={() => setIsTagOpen(false)}
+        imageId={decodedId || inspectData.Id}
+        imageShortId={shortId}
+        currentTags={tags}
+        onSuccess={() => refetch()}
+      />
+
+      <PushImageModal
+        isOpen={isPushOpen}
+        onClose={() => setIsPushOpen(false)}
+        imageId={decodedId || inspectData.Id}
+        availableTags={tags}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

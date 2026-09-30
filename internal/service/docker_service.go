@@ -247,6 +247,17 @@ func (ds *DockerService) RestartContainer(ctx context.Context, id string) error 
 	return err
 }
 
+func (ds *DockerService) RemoveContainer(ctx context.Context, id string, force bool) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+	_, err := ds.cli.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
+		Force:         force,
+		RemoveVolumes: false,
+	})
+	return err
+}
+
 func (ds *DockerService) InspectContainer(ctx context.Context, id string) (client.ContainerInspectResult, error) {
 	if ds.cli == nil {
 		return client.ContainerInspectResult{}, fmt.Errorf("docker client not initialized")
@@ -873,5 +884,52 @@ func (ds *DockerService) PruneImages(ctx context.Context, danglingOnly bool) (*i
 	}
 	return &res.Report, nil
 }
+
+func (ds *DockerService) TagImage(ctx context.Context, imageID, targetRepoTag string) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+
+	_, err := ds.cli.ImageTag(ctx, client.ImageTagOptions{
+		Source: imageID,
+		Target: targetRepoTag,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to tag image: %w", err)
+	}
+	return nil
+}
+
+func (ds *DockerService) CommitContainer(ctx context.Context, containerID, reference, comment, author string, pause bool) (string, error) {
+	if ds.cli == nil {
+		return "", fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ContainerCommit(ctx, containerID, client.ContainerCommitOptions{
+		Reference: reference,
+		Comment:   comment,
+		Author:    author,
+		NoPause:   !pause,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to commit container: %w", err)
+	}
+	return res.ID, nil
+}
+
+func (ds *DockerService) PushImage(ctx context.Context, target string, authHeader string) (io.ReadCloser, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ImagePush(ctx, target, client.ImagePushOptions{
+		RegistryAuth: authHeader,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to push image: %w", err)
+	}
+	return res, nil
+}
+
 
 

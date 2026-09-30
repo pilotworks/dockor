@@ -3,14 +3,17 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pilotworks/dockor/internal/models"
@@ -242,3 +245,179 @@ func generateRandomString(length int, charsetType string) string {
 	}
 	return string(result)
 }
+
+func (te *TemplateEngine) SaveCustomTemplate(tmpl *models.Template) error {
+	if tmpl.Metadata.ID == "" {
+		if tmpl.Metadata.Name != "" {
+			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
+			tmpl.Metadata.ID = strings.ToLower(reg.ReplaceAllString(tmpl.Metadata.Name, "-"))
+		} else {
+			tmpl.Metadata.ID = "tmpl-" + uuid.New().String()[:8]
+		}
+	}
+
+	targetDir := filepath.Join(te.templatesDir, tmpl.Metadata.ID)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create template directory: %w", err)
+	}
+
+	// Write dockor.yaml
+	manifest := models.Template{
+		Metadata:  tmpl.Metadata,
+		Variables: tmpl.Variables,
+	}
+	manifestBytes, err := yaml.Marshal(manifest)
+	if err != nil {
+		return fmt.Errorf("failed to serialize dockor.yaml: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "dockor.yaml"), manifestBytes, 0644); err != nil {
+		return fmt.Errorf("failed to write dockor.yaml: %w", err)
+	}
+
+	// Write docker-compose.yml
+	composeYAML := tmpl.ComposeYAML
+	if strings.TrimSpace(composeYAML) == "" {
+		composeYAML = "services:\n  app:\n    image: nginx:alpine\n    restart: unless-stopped\n"
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "docker-compose.yml"), []byte(composeYAML), 0644); err != nil {
+		return fmt.Errorf("failed to write docker-compose.yml: %w", err)
+	}
+
+	return nil
+}
+
+type portainerTemplate struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Note        string   `json:"note"`
+	Categories  []string `json:"categories"`
+	Platform    string   `json:"platform"`
+	Logo        string   `json:"logo"`
+	Image       string   `json:"image"`
+	Env         []struct {
+		Name        string `json:"name"`
+		Label       string `json:"label"`
+		Default     string `json:"default"`
+		Description string `json:"description"`
+	} `json:"env"`
+	Repository struct {
+		URL       string `json:"url"`
+		StackFile string `json:"stackfile"`
+	} `json:"repository"`
+}
+
+type portainerCatalogWrapper struct {
+	Version   string              `json:"version"`
+	Templates []portainerTemplate `json:"templates"`
+}
+
+func (te *TemplateEngine) ImportCatalogFromURL(urlStr string) (int, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(urlStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch catalog: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return 0, fmt.Errorf("catalog returned HTTP status %d", resp.StatusCode)
+	}
+
+	var raw json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return 0, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+
+	count := 0
+	// 1. Try decoding as portainer catalog wrapper { "version": "...", "templates": [...] }
+	var catalog portainerCatalogWrapper
+	if err := json.Unmarshal(raw, &catalog); err == nil && len(catalog.Templates) > 0 {
+		for _, pt := range catalog.Templates {
+			if strings.TrimSpace(pt.Title) == "" {
+				continue
+			}
+			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
+			id := strings.ToLower(reg.ReplaceAllString(pt.Title, "-"))
+			if id == "" {
+				id = "pt-" + uuid.New().String()[:8]
+			}
+
+			catName := "General"
+			if len(pt.Categories) > 0 && pt.Categories[0] != "" {
+				catName = pt.Categories[0]
+			}
+
+			var vars []models.TemplateVariable
+			for _, e := range pt.Env {
+				vars = append(vars, models.TemplateVariable{
+					Name:        e.Name,
+					Label:       e.Label,
+					Type:        models.VarTypeString,
+					Default:     e.Default,
+					Description: e.Description,
+				})
+			}
+
+			var compose string
+			if pt.Image != "" {
+				compose = fmt.Sprintf("services:\n  %s:\n    image: %s\n    restart: unless-stopped\n", id, pt.Image)
+			} else {
+				compose = "services:\n  app:\n    image: nginx:alpine\n    restart: unless-stopped\n"
+			}
+
+			tmpl := models.Template{
+				Metadata: models.TemplateMetadata{
+					ID:          id,
+					Name:        pt.Title,
+					Description: pt.Description,
+					Category:    catName,
+					Icon:        pt.Logo,
+					Version:     "latest",
+				},
+				Variables:   vars,
+				ComposeYAML: compose,
+			}
+			_ = te.SaveCustomTemplate(&tmpl)
+			count++
+		}
+		return count, nil
+	}
+
+	// 2. Try decoding as direct list of templates []portainerTemplate or []models.Template
+	var ptList []portainerTemplate
+	if err := json.Unmarshal(raw, &ptList); err == nil && len(ptList) > 0 {
+		for _, pt := range ptList {
+			if strings.TrimSpace(pt.Title) == "" {
+				continue
+			}
+			reg := regexp.MustCompile("[^a-zA-Z0-9_-]+")
+			id := strings.ToLower(reg.ReplaceAllString(pt.Title, "-"))
+			if id == "" {
+				id = "pt-" + uuid.New().String()[:8]
+			}
+
+			catName := "General"
+			if len(pt.Categories) > 0 && pt.Categories[0] != "" {
+				catName = pt.Categories[0]
+			}
+
+			tmpl := models.Template{
+				Metadata: models.TemplateMetadata{
+					ID:          id,
+					Name:        pt.Title,
+					Description: pt.Description,
+					Category:    catName,
+					Icon:        pt.Logo,
+					Version:     "latest",
+				},
+				ComposeYAML: fmt.Sprintf("services:\n  %s:\n    image: %s\n    restart: unless-stopped\n", id, pt.Image),
+			}
+			_ = te.SaveCustomTemplate(&tmpl)
+			count++
+		}
+		return count, nil
+	}
+
+	return 0, fmt.Errorf("unrecognized catalog format")
+}
+

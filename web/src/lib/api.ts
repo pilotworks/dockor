@@ -129,6 +129,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ variables }),
     }).then(handleResponse<{ evaluated_variables: Record<string, any>; warnings: string[]; rendered_compose: string }>),
+  createTemplate: (data: any) =>
+    fetch(`${API_BASE}/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(handleResponse<any>),
+  importCatalog: (url: string) =>
+    fetch(`${API_BASE}/templates/import-catalog`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    }).then(handleResponse<{ imported: number; message: string }>),
 
   // Stacks
   getStacks: () => fetch(`${API_BASE}/stacks`).then(handleResponse<Stack[]>),
@@ -152,6 +164,10 @@ export const api = {
   getStackLogs: (id: string) => fetch(`${API_BASE}/stacks/${id}/logs`).then(handleResponse<{ logs: string }>),
   deleteStack: (id: string, deleteVolumes = false) =>
     fetch(`${API_BASE}/stacks/${id}?delete_volumes=${deleteVolumes}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
+  redeployStackWebhook: (id: string, token: string) =>
+    fetch(`${API_BASE}/stacks/${id}/webhook?token=${encodeURIComponent(token)}`, { method: 'POST' }).then(handleResponse<{ status: string; message: string }>),
+  regenerateStackWebhookToken: (id: string) =>
+    fetch(`${API_BASE}/stacks/${id}/webhook/token`, { method: 'POST' }).then(handleResponse<{ webhook_token: string; webhook_url: string }>),
 
   // Containers
   getContainers: () => fetch(`${API_BASE}/containers?all=true`).then(handleResponse<Container[]>),
@@ -165,9 +181,23 @@ export const api = {
   startContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/start`, { method: 'POST' }),
   stopContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/stop`, { method: 'POST' }),
   restartContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/restart`, { method: 'POST' }),
+  deleteContainer: (id: string, force = false) =>
+    fetch(`${API_BASE}/containers/${id}?force=${force}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
+  commitContainer: (id: string, data: { repo: string; tag?: string; comment?: string; author?: string; pause?: boolean }) =>
+    fetch(`${API_BASE}/containers/${id}/commit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(handleResponse<{ image_id: string; reference: string; status: string }>),
 
   // Nodes
   getNodes: () => fetch(`${API_BASE}/nodes`).then(handleResponse<Node[]>),
+  getNodeEnrollment: () =>
+    fetch(`${API_BASE}/nodes/enrollment-token`, { method: 'POST' }).then(
+      handleResponse<{ token: string; server_url: string; docker_command: string; install_command: string }>
+    ),
+  deleteNode: (id: string) =>
+    fetch(`${API_BASE}/nodes/${id}`, { method: 'DELETE' }).then(handleResponse<{ status: string }>),
 
   // Networks
   getNetworks: () => fetch(`${API_BASE}/networks`).then(handleResponse<import('../types').DockerNetwork[]>),
@@ -214,6 +244,47 @@ export const api = {
     fetch(`${API_BASE}/images/${encodeURIComponent(id)}?force=${force}`, { method: 'DELETE' }).then(handleResponse<{ message: string; items: any[] }>),
   pruneImages: (all = false) =>
     fetch(`${API_BASE}/images/prune?all=${all}`, { method: 'POST' }).then(handleResponse<any>),
+  tagImage: (id: string, repo: string, tag: string) =>
+    fetch(`${API_BASE}/images/${encodeURIComponent(id)}/tag`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo, tag }),
+    }).then(handleResponse<{ status: string; target: string }>),
+  pushImage: async (id: string, tag?: string, auth?: string, onProgress?: (msg: any) => void) => {
+    const res = await fetch(`${API_BASE}/images/${encodeURIComponent(id)}/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag, auth }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || 'Failed to push image');
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          onProgress?.(parsed);
+        } catch {}
+      }
+    }
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer);
+        onProgress?.(parsed);
+      } catch {}
+    }
+  },
   pullImage: async (image: string, onProgress?: (msg: any) => void) => {
     const res = await fetch(`${API_BASE}/images/pull`, {
       method: 'POST',

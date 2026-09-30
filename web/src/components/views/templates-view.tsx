@@ -1,13 +1,26 @@
+import { useState } from 'react';
 import { useTemplates } from '../../hooks/use-templates';
 import { useTemplateStore } from '../../stores/use-template-store';
 import { TemplateCard } from '../templates/template-card';
-import { IconSearch, IconTemplate, IconSparkles } from '@tabler/icons-react';
+import {
+  IconSearch,
+  IconTemplate,
+  IconSparkles,
+  IconDownload,
+  IconPlus,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
 import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { ImportCatalogModal } from '../templates/import-catalog-modal';
+import { CreateTemplateModal } from '../templates/create-template-modal';
 
 export function TemplatesView() {
-  const { data: templates = [], isLoading, error } = useTemplates();
+  const { data: templates = [], isLoading, error, refetch, isFetching } = useTemplates();
   const { searchQuery, setSearchQuery, selectedCategory, setSelectedCategory } = useTemplateStore();
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const categories = ['All', ...new Set(templates.map((t) => t.metadata.category).filter(Boolean))];
 
@@ -39,16 +52,48 @@ export function TemplatesView() {
             </p>
           </div>
 
-          {/* Quick Search */}
-          <div className="relative w-full md:w-72 shrink-0">
-            <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search templates or tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 h-9 rounded-xl"
-            />
+          {/* Actions & Search */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <IconSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 z-10 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search templates or tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 h-9 rounded-xl"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportOpen(true)}
+              className="h-9 px-3 gap-1.5 rounded-xl text-xs"
+            >
+              <IconDownload className="w-3.5 h-3.5 text-zinc-500" />
+              <span>Import Catalog</span>
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={() => setIsCreateOpen(true)}
+              className="h-9 px-3 gap-1.5 rounded-xl text-xs bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              <IconPlus className="w-3.5 h-3.5" />
+              <span>New Template</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="h-9 w-9 p-0 rounded-xl"
+              title="Refresh templates"
+            >
+              <IconRefresh className={cn('w-3.5 h-3.5 text-zinc-500', isFetching && 'animate-spin')} />
+            </Button>
           </div>
         </div>
       </div>
@@ -121,6 +166,18 @@ export function TemplatesView() {
           </p>
         </div>
       )}
+
+      {/* Modals */}
+      <ImportCatalogModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => refetch()}
+      />
+      <CreateTemplateModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }

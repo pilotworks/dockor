@@ -26,6 +26,8 @@ import {
   IconRefresh,
   IconPlus,
   IconUnlink,
+  IconDeviceFloppy,
+  IconTrash,
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -47,6 +49,8 @@ import {
 } from '../ui/dialog';
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
+import { api } from '../../lib/api';
+import { CommitContainerModal } from '../containers/commit-container-modal';
 import { useAppStore } from '../../stores/use-app-store';
 import { confirmDialog } from '../../stores/use-dialog-store';
 import { Terminal } from '@xterm/xterm';
@@ -196,6 +200,8 @@ export function ContainerDetailView() {
   };
 
   const [loadingAction, setLoadingAction] = useState<'start' | 'stop' | 'restart' | null>(null);
+  const [isCommitOpen, setIsCommitOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
     if (!id || !container) return;
@@ -208,6 +214,31 @@ export function ContainerDetailView() {
       toast.error(`Failed to ${action} container`, { description: err.message });
     } finally {
       setLoadingAction(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id || !container) return;
+    const isRunning = Boolean(container.state?.running);
+    const containerName = (container.name || '').replace(/^\//, '') || container.id?.slice(0, 12) || 'container';
+    const confirmed = await confirmDialog({
+      title: isRunning ? 'Force Delete Running Container' : 'Delete Container',
+      description: isRunning
+        ? `Container "${containerName}" is currently running. Deleting it will forcibly stop and remove it. Are you sure you want to proceed?`
+        : `Are you sure you want to permanently delete container "${containerName}"? This action cannot be undone.`,
+      confirmText: isRunning ? 'Force Delete' : 'Delete',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await api.deleteContainer(id, isRunning);
+      toast.success(`Container ${containerName} deleted successfully`);
+      navigate('/containers');
+    } catch (err: any) {
+      toast.error('Failed to delete container', { description: err.message });
+      setIsDeleting(false);
     }
   };
 
@@ -316,6 +347,29 @@ export function ContainerDetailView() {
               <IconRotateClockwise className="w-3.5 h-3.5" />
             )}
             {loadingAction === 'restart' ? 'Restarting...' : 'Restart'}
+          </Button>
+
+          <Button
+            variant="surface"
+            size="sm"
+            onClick={() => setIsCommitOpen(true)}
+            className="gap-1.5 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400"
+            title="Commit container changes to a new image"
+          >
+            <IconDeviceFloppy className="w-3.5 h-3.5" />
+            Commit
+          </Button>
+
+          <Button
+            variant="surface"
+            size="sm"
+            disabled={isDeleting}
+            onClick={handleDelete}
+            className="gap-1.5 text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+            title="Delete container"
+          >
+            <IconTrash className="w-3.5 h-3.5" />
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
       </div>
@@ -1010,6 +1064,14 @@ export function ContainerDetailView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Commit Container to Image Modal */}
+      <CommitContainerModal
+        isOpen={isCommitOpen}
+        onClose={() => setIsCommitOpen(false)}
+        containerId={id || ''}
+        containerName={containerName}
+      />
     </div>
   );
 }

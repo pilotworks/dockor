@@ -40,6 +40,8 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 		// Templates
 		r.Route("/templates", func(r chi.Router) {
 			r.Get("/", h.ListTemplates)
+			r.Post("/", h.CreateCustomTemplate)
+			r.Post("/import-catalog", h.ImportTemplateCatalog)
 			r.Get("/{id}", h.GetTemplate)
 			r.Post("/{id}/preview", h.PreviewTemplate)
 		})
@@ -56,6 +58,8 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/restart", h.RestartStack)
 			r.Post("/{id}/pull", h.PullStack)
 			r.Get("/{id}/logs", h.GetStackLogs)
+			r.Post("/{id}/webhook", h.RedeployStackWebhook)
+			r.Post("/{id}/webhook/token", h.RegenerateStackWebhookToken)
 		})
 
 		// Containers
@@ -66,6 +70,8 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/start", h.StartContainer)
 			r.Post("/{id}/stop", h.StopContainer)
 			r.Post("/{id}/restart", h.RestartContainer)
+			r.Delete("/{id}", h.DeleteContainer)
+			r.Post("/{id}/commit", h.CommitContainer)
 			r.Get("/{id}/logs", h.ContainerLogs)
 			r.Get("/{id}/exec", h.ContainerExec)
 			r.Get("/{id}/stats", h.ContainerStats)
@@ -97,11 +103,15 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/prune", h.PruneImages)
 			r.Get("/{id}", h.GetImage)
 			r.Delete("/{id}", h.DeleteImage)
+			r.Post("/{id}/tag", h.TagImage)
+			r.Post("/{id}/push", h.PushImage)
 		})
 
 		// Nodes
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", h.ListNodes)
+			r.Post("/enrollment-token", h.GenerateNodeEnrollment)
+			r.Delete("/{id}", h.DeleteNode)
 		})
 
 		// System

@@ -1,17 +1,42 @@
+import { useState } from 'react';
 import { useNodes } from '../../hooks/use-nodes';
-import { IconServer, IconClock, IconCpu, IconNetwork, IconPlus } from '@tabler/icons-react';
+import {
+  IconServer,
+  IconClock,
+  IconCpu,
+  IconNetwork,
+  IconPlus,
+  IconTrash,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
+import { confirmDialog } from '../../stores/use-dialog-store';
+import { api } from '../../lib/api';
+import { EnrollNodeModal } from '../nodes/enroll-node-modal';
 
 export function NodesView() {
-  const { data: nodes = [], isLoading } = useNodes();
+  const { data: nodes = [], isLoading, refetch, isFetching } = useNodes();
+  const [isEnrollOpen, setIsEnrollOpen] = useState(false);
 
-  const handleEnrollNode = () => {
-    toast.info('Generating node enrollment command...', {
-      description: 'Run: curl -fsSL https://dockor.local/install-agent.sh | sh',
+  const handleDeleteNode = async (id: string, name: string) => {
+    const confirmed = await confirmDialog({
+      title: `Remove Node "${name}"`,
+      description: 'Are you sure you want to remove this remote node from your cluster topology? Containers running on this node will not be stopped.',
+      confirmText: 'Remove Node',
+      variant: 'destructive',
     });
+    if (!confirmed) return;
+
+    try {
+      await api.deleteNode(id);
+      toast.success(`Node ${name} removed`);
+      refetch();
+    } catch (err: any) {
+      toast.error('Failed to remove node: ' + err.message);
+    }
   };
 
   return (
@@ -25,10 +50,29 @@ export function NodesView() {
           </p>
         </div>
 
-        <Button size="sm" variant="primary" onClick={handleEnrollNode} className="gap-1.5">
-          <IconPlus className="w-3.5 h-3.5" />
-          Enroll Remote Node
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="surface"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="h-8 gap-1.5 text-xs"
+            title="Refresh Nodes"
+          >
+            <IconRefresh className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setIsEnrollOpen(true)}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <IconPlus className="w-3.5 h-3.5" />
+            <span>Enroll Remote Node</span>
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -69,6 +113,18 @@ export function NodesView() {
                       </p>
                     </div>
                   </div>
+
+                  {!node.is_local && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteNode(node.id, node.name)}
+                      className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      title="Remove Node"
+                    >
+                      <IconTrash className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4 pt-3.5 border-t border-zinc-100 dark:border-[#1C1C22] text-xs">
@@ -109,6 +165,13 @@ export function NodesView() {
           })}
         </div>
       )}
+
+      {/* Enroll Node Modal */}
+      <EnrollNodeModal
+        isOpen={isEnrollOpen}
+        onClose={() => setIsEnrollOpen(false)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }
