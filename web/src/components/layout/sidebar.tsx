@@ -20,6 +20,7 @@ import { useTemplates } from '../../hooks/use-templates';
 import { useNetworks } from '../../hooks/use-networks';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
+import { DockorLogo } from '../brand/dockor-logo';
 
 export function Sidebar() {
   const { selectedNodeId, theme, toggleTheme } = useAppStore();
@@ -75,8 +76,8 @@ export function Sidebar() {
         {/* Brand */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center font-black text-white text-sm shadow-[0_0_15px_rgba(37,99,235,0.4)] border border-blue-400/30">
-              D
+            <div className="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/40 flex items-center justify-center p-0.5 shadow-xs shrink-0">
+              <DockorLogo className="w-full h-full" />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100">Dockor</span>
