@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import {
   IconDownload,
   IconX,
-  IconSparkles,
+  IconTemplate,
   IconLoader2,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -113,7 +113,7 @@ export function ImportCatalogModal({ isOpen, onClose, onSuccess }: ImportCatalog
               >
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-1.5 font-medium text-xs text-zinc-900 dark:text-zinc-100">
-                    <IconSparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                    <IconTemplate className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                     <span>{item.name}</span>
                   </div>
                   <p className="text-[11px] text-zinc-500 truncate">{item.desc}</p>

@@ -6,7 +6,6 @@ import { TemplateCard } from '../templates/template-card';
 import {
   IconSearch,
   IconTemplate,
-  IconSparkles,
   IconDownload,
   IconPlus,
   IconRefresh,
@@ -61,7 +60,7 @@ export function TemplatesView() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800/40 text-[11px] font-medium text-blue-700 dark:text-blue-400">
-              <IconSparkles className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+              <IconTemplate className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>Official & Community Catalogs</span>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">

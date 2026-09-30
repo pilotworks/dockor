@@ -3,7 +3,7 @@ import { api } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { IconDownload, IconX, IconSparkles, IconCheck, IconLoader2 } from '@tabler/icons-react';
+import { IconDownload, IconX, IconFlame, IconCheck, IconLoader2 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 
 interface PullImageModalProps {
@@ -151,7 +151,7 @@ export function PullImageModal({ isOpen, onClose }: PullImageModalProps) {
           {/* Popular Presets */}
           <div>
             <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 mb-2">
-              <IconSparkles className="w-3 h-3 text-amber-500" />
+              <IconFlame className="w-3.5 h-3.5 text-amber-500" />
               <span>Popular Starter Images</span>
             </div>
             <div className="flex flex-wrap gap-1.5">

@@ -20,7 +20,7 @@ import {
 import { useCreateRegistry, useUpdateRegistry } from '../../hooks/use-registries';
 import { Registry } from '../../types';
 import { toast } from 'sonner';
-import { IconDatabase, IconLock, IconLoader2, IconSparkles } from '@tabler/icons-react';
+import { IconDatabase, IconLock, IconLoader2, IconServer } from '@tabler/icons-react';
 
 interface CreateRegistryModalProps {
   isOpen: boolean;
@@ -148,7 +148,7 @@ export function CreateRegistryModal({
             {!registryToEdit && (
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <IconSparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <IconServer className="w-3.5 h-3.5 text-blue-500" />
                   Provider Preset
                 </label>
                 <Select value={selectedPreset} onValueChange={handlePresetChange}>
