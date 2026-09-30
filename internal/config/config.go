@@ -18,6 +18,7 @@ type Config struct {
 	JWTSecret    string
 	TemplatesDir string
 	SecretKey    string
+	WebDir       string
 }
 
 func Load() *Config {
@@ -65,6 +66,32 @@ func Load() *Config {
 		}
 	}
 
+	// Resolve Web Distribution directory
+	webDir := os.Getenv("DOCKOR_WEB_DIR")
+	if webDir == "" {
+		candidates := []string{
+			"./web/dist",
+			"/app/web/dist",
+			"../web/dist",
+		}
+		if exe, err := os.Executable(); err == nil {
+			exeDir := filepath.Dir(exe)
+			candidates = append(candidates,
+				filepath.Join(exeDir, "web", "dist"),
+				filepath.Join(exeDir, "dist"),
+				filepath.Join(exeDir, "..", "web", "dist"),
+			)
+		}
+		for _, cand := range candidates {
+			if stat, err := os.Stat(cand); err == nil && stat.IsDir() {
+				if _, err := os.Stat(filepath.Join(cand, "index.html")); err == nil {
+					webDir = cand
+					break
+				}
+			}
+		}
+	}
+
 	return &Config{
 		Port:         port,
 		DataDir:      dataDir,
@@ -73,5 +100,6 @@ func Load() *Config {
 		JWTSecret:    jwtSecret,
 		TemplatesDir: templatesDir,
 		SecretKey:    secretKey,
+		WebDir:       webDir,
 	}
 }

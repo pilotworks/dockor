@@ -2,6 +2,9 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -9,7 +12,7 @@ import (
 	"github.com/pilotworks/dockor/internal/api/handlers"
 )
 
-func NewRouter(h *handlers.APIHandler) http.Handler {
+func NewRouter(h *handlers.APIHandler, webDir ...string) http.Handler {
 	r := chi.NewRouter()
 
 	// Global Middlewares
@@ -146,5 +149,50 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 		r.Get("/containers/{id}/stats", h.ContainerStats)
 	})
 
+	// Mount Static File Server and SPA Fallback if web distribution directory is provided
+	if len(webDir) > 0 && webDir[0] != "" {
+		SetupSPAHandler(r, webDir[0])
+	}
+
 	return r
 }
+
+// SetupSPAHandler mounts static assets and provides HTML5 History API fallback to index.html for React SPA
+func SetupSPAHandler(r chi.Router, webDir string) {
+	if webDir == "" {
+		return
+	}
+	indexPath := filepath.Join(webDir, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		return
+	}
+
+	fs := http.FileServer(http.Dir(webDir))
+
+	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+		// Never intercept /api or /ws requests with SPA fallback
+		if strings.HasPrefix(req.URL.Path, "/api") || strings.HasPrefix(req.URL.Path, "/ws") {
+			http.NotFound(w, req)
+			return
+		}
+
+		relPath := filepath.Clean(strings.TrimPrefix(req.URL.Path, "/"))
+		targetPath := filepath.Join(webDir, relPath)
+
+		stat, err := os.Stat(targetPath)
+		if err == nil && !stat.IsDir() {
+			if strings.HasPrefix(relPath, "assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else {
+				w.Header().Set("Cache-Control", "no-cache")
+			}
+			fs.ServeHTTP(w, req)
+			return
+		}
+
+		// Fallback to index.html for client-side routing
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeFile(w, req, indexPath)
+	})
+}
+

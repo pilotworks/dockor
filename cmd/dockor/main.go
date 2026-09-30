@@ -132,7 +132,13 @@ func main() {
 		dockerSvc.StartEventMonitoring(ctx)
 	}
 
-	router := api.NewRouter(handler)
+	if cfg.WebDir != "" {
+		log.Printf("Serving web UI from: %s", cfg.WebDir)
+	} else {
+		log.Println("Notice: No web distribution found in ./web/dist or /app/web/dist (API-only mode)")
+	}
+
+	router := api.NewRouter(handler, cfg.WebDir)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
