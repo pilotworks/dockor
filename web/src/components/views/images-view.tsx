@@ -18,6 +18,14 @@ import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { PullImageModal } from '../images/pull-image-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -356,61 +364,60 @@ export function ImagesView() {
 
       {/* Images Table */}
       <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden bg-white dark:bg-[#121216] shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-medium">
-              <tr>
-                <th className="py-2.5 px-3 w-9 text-center">
-                  <div className="flex items-center justify-center">
-                    <Checkbox
-                      size="sm"
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                      indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
-                      onChange={toggleSelectAll}
-                    />
-                  </div>
-                </th>
-                <th className="py-2.5 px-4 font-semibold">Repository & Tags</th>
-                <th className="py-2.5 px-3 font-semibold">Image ID</th>
-                <th className="py-2.5 px-3 font-semibold">Size</th>
-                <th className="py-2.5 px-3 font-semibold">Containers</th>
-                <th className="py-2.5 px-3 font-semibold">Status</th>
-                <th className="py-2.5 px-3 font-semibold">Created</th>
-                <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-400">
-                    Loading image manifests...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center">
-                    <IconDisc className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-500 font-medium">No images found</p>
-                    <p className="text-zinc-400 text-[11px] mt-0.5">
-                      {search ? 'Try adjusting your search criteria' : 'Pull a new image to get started'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-medium">
+              <TableHead className="py-2.5 px-3 w-9 text-center">
+                <div className="flex items-center justify-center">
+                  <Checkbox
+                    size="sm"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
+                    onChange={toggleSelectAll}
+                  />
+                </div>
+              </TableHead>
+              <TableHead className="py-2.5 px-4 font-semibold">Repository & Tags</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold">Image ID</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold">Size</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold">Containers</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold">Status</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold">Created</TableHead>
+              <TableHead className="py-2.5 px-4 font-semibold text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-12 text-center text-zinc-400">
+                  Loading image manifests...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-12 text-center">
+                  <IconDisc className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-zinc-500 font-medium">No images found</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    {search ? 'Try adjusting your search criteria' : 'Pull a new image to get started'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
                 filtered.map((img) => {
                   const hasTags = img.repo_tags && img.repo_tags.length > 0 && img.repo_tags[0] !== '<none>:<none>';
                   const primaryTag = hasTags ? img.repo_tags[0] : '<none>:<none>';
                   const isSelected = selectedIds.has(img.id);
 
                   return (
-                    <tr
+                    <TableRow
                       key={img.id}
                       className={cn(
                         'hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors group',
                         isSelected && 'bg-blue-50/50 dark:bg-blue-950/20'
                       )}
                     >
-                      <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center">
                           <Checkbox
                             size="sm"
@@ -418,8 +425,8 @@ export function ImagesView() {
                             onChange={(e) => toggleSelect(img.id, e as any)}
                           />
                         </div>
-                      </td>
-                      <td className="py-3 px-4">
+                      </TableCell>
+                      <TableCell className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Link
                             to={`/images/${img.short_id || encodeURIComponent(img.id)}`}
@@ -453,17 +460,17 @@ export function ImagesView() {
                             ))}
                           </div>
                         )}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3 font-mono text-[11px] text-zinc-500">
+                      <TableCell className="py-3 px-3 font-mono text-[11px] text-zinc-500">
                         {img.short_id}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                      <TableCell className="py-3 px-3 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
                         {formatBytes(img.size)}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3">
+                      <TableCell className="py-3 px-3">
                         {img.used_by && img.used_by.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {img.used_by.map((c) => (
@@ -480,19 +487,19 @@ export function ImagesView() {
                         ) : (
                           <span className="text-zinc-400 text-[11px] italic">0</span>
                         )}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3">
+                      <TableCell className="py-3 px-3">
                         <Badge variant={img.in_use ? 'success' : 'neutral'} dot>
                           {img.in_use ? 'In Use' : 'Unused'}
                         </Badge>
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3 text-zinc-500 font-mono text-[11px]">
+                      <TableCell className="py-3 px-3 text-zinc-500 font-mono text-[11px]">
                         {formatDate(img.created)}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-4 text-right">
+                      <TableCell className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-1">
                           <Link to={`/images/${encodeURIComponent(img.id)}`}>
                             <Button
@@ -515,15 +522,14 @@ export function ImagesView() {
                             <IconTrash className="w-3.5 h-3.5" />
                           </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </div>
 
       {/* Floating Batch Action Toolbar */}
       {selectedIds.size > 0 && (

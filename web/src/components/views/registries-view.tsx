@@ -16,6 +16,14 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { toast } from 'sonner';
 import { useRegistries, useDeleteRegistry } from '../../hooks/use-registries';
 import { CreateRegistryModal } from '../registries/create-registry-modal';
@@ -150,102 +158,100 @@ export function RegistriesView() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-[#202026] bg-zinc-50/75 dark:bg-[#0E0E12] text-zinc-500 dark:text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
-                  <th className="py-3 px-4">Registry Name</th>
-                  <th className="py-3 px-4">Server Address</th>
-                  <th className="py-3 px-4">Account / Username</th>
-                  <th className="py-3 px-4">Encryption</th>
-                  <th className="py-3 px-4">Default</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-[#202026]">
-                {filteredRegistries.map((reg) => (
-                  <tr
-                    key={reg.id}
-                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors"
-                  >
-                    <td className="py-3.5 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
-                      <div className="flex items-center gap-2">
-                        <IconDatabase className="w-4 h-4 text-blue-500 shrink-0" />
-                        <span>{reg.name}</span>
-                      </div>
-                    </td>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-zinc-200 dark:border-[#202026] bg-zinc-50/75 dark:bg-[#0E0E12] text-zinc-500 dark:text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
+                <TableHead className="py-3 px-4">Registry Name</TableHead>
+                <TableHead className="py-3 px-4">Server Address</TableHead>
+                <TableHead className="py-3 px-4">Account / Username</TableHead>
+                <TableHead className="py-3 px-4">Encryption</TableHead>
+                <TableHead className="py-3 px-4">Default</TableHead>
+                <TableHead className="py-3 px-4 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-zinc-200 dark:divide-[#202026]">
+              {filteredRegistries.map((reg) => (
+                <TableRow
+                  key={reg.id}
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors"
+                >
+                  <TableCell className="py-3.5 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
+                    <div className="flex items-center gap-2">
+                      <IconDatabase className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span>{reg.name}</span>
+                    </div>
+                  </TableCell>
 
-                    <td className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-300">
-                      <div className="flex items-center gap-1.5">
-                        <span>{reg.server_address}</span>
-                        {reg.server_address.startsWith('http') && (
-                          <a
-                            href={reg.server_address}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                          >
-                            <IconExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 font-mono">
-                      {reg.username ? reg.username : <span className="text-zinc-400 italic">None</span>}
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {reg.has_password ? (
-                        <div className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
-                          <IconLock className="w-3 h-3" />
-                          <span>AES-256</span>
-                        </div>
-                      ) : (
-                        <span className="text-zinc-400 text-[11px]">Unauthenticated</span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {reg.is_default ? (
-                        <Badge variant="success" className="gap-1 text-[10px] uppercase font-bold tracking-wider">
-                          <IconCheck className="w-2.5 h-2.5 stroke-[3]" />
-                          Default
-                        </Badge>
-                      ) : (
-                        <span className="text-zinc-400 text-xs">—</span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="surface"
-                          size="sm"
-                          onClick={() => handleEdit(reg)}
-                          className="h-7 px-2 text-xs gap-1"
-                          title="Edit registry"
+                  <TableCell className="py-3.5 px-4 font-mono text-zinc-600 dark:text-zinc-300">
+                    <div className="flex items-center gap-1.5">
+                      <span>{reg.server_address}</span>
+                      {reg.server_address.startsWith('http') && (
+                        <a
+                          href={reg.server_address}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                         >
-                          <IconEdit className="w-3.5 h-3.5" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="surface"
-                          size="sm"
-                          onClick={() => handleDelete(reg)}
-                          className="h-7 px-2 text-xs gap-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-                          title="Delete registry"
-                        >
-                          <IconTrash className="w-3.5 h-3.5" />
-                          Delete
-                        </Button>
+                          <IconExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 font-mono">
+                    {reg.username ? reg.username : <span className="text-zinc-400 italic">None</span>}
+                  </TableCell>
+
+                  <TableCell className="py-3.5 px-4">
+                    {reg.has_password ? (
+                      <div className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                        <IconLock className="w-3 h-3" />
+                        <span>AES-256</span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : (
+                      <span className="text-zinc-400 text-[11px]">Unauthenticated</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="py-3.5 px-4">
+                    {reg.is_default ? (
+                      <Badge variant="success" className="gap-1 text-[10px] uppercase font-bold tracking-wider">
+                        <IconCheck className="w-2.5 h-2.5 stroke-[3]" />
+                        Default
+                      </Badge>
+                    ) : (
+                      <span className="text-zinc-400 text-xs">—</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="py-3.5 px-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="surface"
+                        size="sm"
+                        onClick={() => handleEdit(reg)}
+                        className="h-7 px-2 text-xs gap-1"
+                        title="Edit registry"
+                      >
+                        <IconEdit className="w-3.5 h-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="surface"
+                        size="sm"
+                        onClick={() => handleDelete(reg)}
+                        className="h-7 px-2 text-xs gap-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        title="Delete registry"
+                      >
+                        <IconTrash className="w-3.5 h-3.5" />
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </Card>
 

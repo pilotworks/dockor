@@ -22,6 +22,15 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -289,71 +298,37 @@ export function ImageDetailView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-[#23232A]">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'overview'
-              ? 'border-purple-500 text-purple-600 dark:text-purple-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconServer className="w-3.5 h-3.5" />
-          <span>Overview & Config</span>
-        </button>
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} variant="line">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-1.5">
+            <IconServer className="w-3.5 h-3.5" />
+            <span>Overview & Config</span>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('containers')}
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'containers'
-              ? 'border-purple-500 text-purple-600 dark:text-purple-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconBox className="w-3.5 h-3.5" />
-          <span>Containers ({usedByContainers.length})</span>
-        </button>
+          <TabsTrigger value="containers" className="gap-1.5">
+            <IconBox className="w-3.5 h-3.5" />
+            <span>Containers ({usedByContainers.length})</span>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('env')}
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'env'
-              ? 'border-purple-500 text-purple-600 dark:text-purple-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconFileText className="w-3.5 h-3.5" />
-          <span>Environment ({envList.length})</span>
-        </button>
+          <TabsTrigger value="env" className="gap-1.5">
+            <IconFileText className="w-3.5 h-3.5" />
+            <span>Environment ({envList.length})</span>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('layers')}
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'layers'
-              ? 'border-purple-500 text-purple-600 dark:text-purple-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconLayersLinked className="w-3.5 h-3.5" />
-          <span>RootFS Layers ({inspectData.RootFS?.Layers?.length || 0})</span>
-        </button>
+          <TabsTrigger value="layers" className="gap-1.5">
+            <IconLayersLinked className="w-3.5 h-3.5" />
+            <span>RootFS Layers ({inspectData.RootFS?.Layers?.length || 0})</span>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('inspect')}
-          className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'inspect'
-              ? 'border-purple-500 text-purple-600 dark:text-purple-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconCode className="w-3.5 h-3.5" />
-          <span>Inspect JSON</span>
-        </button>
-      </div>
+          <TabsTrigger value="inspect" className="gap-1.5">
+            <IconCode className="w-3.5 h-3.5" />
+            <span>Inspect JSON</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Contents */}
-      {activeTab === 'overview' && (
-        <div className="space-y-4">
+        {/* Tab Contents */}
+        <TabsContent value="overview" className="mt-4">
+          <div className="space-y-4">
           {/* Full ID Card */}
           <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs">
             <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block mb-1">
@@ -484,37 +459,36 @@ export function ImageDetailView() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'containers' && (
-        <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl overflow-hidden shadow-xs">
-          <div className="p-4 border-b border-zinc-200 dark:border-[#23232A]">
-            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Containers Running On This Image</h3>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Instances instantiated from this specific image version</p>
           </div>
+        </TabsContent>
 
-          {usedByContainers.length === 0 ? (
-            <div className="py-16 text-center">
-              <IconBox className="w-9 h-9 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
-              <h4 className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">No Active Containers</h4>
-              <p className="text-[11px] text-zinc-500 mt-0.5">This image is currently idle and can be deleted if no longer needed.</p>
+        <TabsContent value="containers" className="mt-4">
+          <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-zinc-200 dark:border-[#23232A]">
+              <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Containers Running On This Image</h3>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Instances instantiated from this specific image version</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 font-medium">
-                  <tr>
-                    <th className="py-2.5 px-4 font-semibold">Container Name</th>
-                    <th className="py-2.5 px-3 font-semibold">Container ID</th>
-                    <th className="py-2.5 px-3 font-semibold">State</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+
+            {usedByContainers.length === 0 ? (
+              <div className="py-16 text-center">
+                <IconBox className="w-9 h-9 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                <h4 className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">No Active Containers</h4>
+                <p className="text-[11px] text-zinc-500 mt-0.5">This image is currently idle and can be deleted if no longer needed.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 font-medium">
+                  <TableRow>
+                    <TableHead className="py-2.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">Container Name</TableHead>
+                    <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">Container ID</TableHead>
+                    <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">State</TableHead>
+                    <TableHead className="py-2.5 px-4 font-semibold text-right text-zinc-500 dark:text-zinc-400">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
                   {usedByContainers.map((c) => (
-                    <tr key={c.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors">
-                      <td className="py-3 px-4">
+                    <TableRow key={c.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors">
+                      <TableCell className="py-3 px-4">
                         <Link
                           to={`/containers/${c.id}`}
                           className="font-mono font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5"
@@ -522,13 +496,13 @@ export function ImageDetailView() {
                           <IconBox className="w-3.5 h-3.5 shrink-0" />
                           <span>{c.name || c.id.substring(0, 12)}</span>
                         </Link>
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3 font-mono text-zinc-500">
+                      <TableCell className="py-3 px-3 font-mono text-zinc-500">
                         {c.id.substring(0, 12)}
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-3">
+                      <TableCell className="py-3 px-3">
                         <Badge
                           variant={c.state === 'running' ? 'success' : 'neutral'}
                           dot
@@ -536,25 +510,24 @@ export function ImageDetailView() {
                         >
                           {c.state}
                         </Badge>
-                      </td>
+                      </TableCell>
 
-                      <td className="py-3 px-4 text-right">
+                      <TableCell className="py-3 px-4 text-right">
                         <Link to={`/containers/${c.id}`}>
                           <Button size="xs" variant="outline" className="text-xs">
                             View Container
                           </Button>
                         </Link>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </TabsContent>
 
-      {activeTab === 'env' && (
+        <TabsContent value="env" className="mt-4">
         <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -602,48 +575,49 @@ export function ImageDetailView() {
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {activeTab === 'layers' && (
-        <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs space-y-4">
-          <div>
-            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">RootFS Filesystem Layers</h3>
-            <p className="text-[11px] text-zinc-500">Immutable content-addressable storage blobs composing the container filesystem</p>
           </div>
+        </TabsContent>
 
-          {(!inspectData.RootFS?.Layers || inspectData.RootFS.Layers.length === 0) ? (
-            <p className="text-xs text-zinc-400 italic py-6 text-center">No layers available for this image.</p>
-          ) : (
-            <div className="space-y-2">
-              {inspectData.RootFS.Layers.map((layer, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-mono"
-                >
-                  <span className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center font-bold text-[11px] shrink-0">
-                    {index + 1}
-                  </span>
-                  <span className="text-zinc-800 dark:text-zinc-200 truncate flex-1 select-all">{layer}</span>
-                  <button
-                    onClick={() => copyToClipboard(layer, `layer-${index}`)}
-                    className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 shrink-0"
-                    title="Copy layer hash"
-                  >
-                    {copiedKey === `layer-${index}` ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              ))}
+        <TabsContent value="layers" className="mt-4">
+          <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">RootFS Filesystem Layers</h3>
+              <p className="text-[11px] text-zinc-500">Immutable content-addressable storage blobs composing the container filesystem</p>
             </div>
-          )}
-        </div>
-      )}
 
-      {activeTab === 'inspect' && (
-        <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs">
-          <JsonViewer data={inspectData} />
-        </div>
-      )}
+            {(!inspectData.RootFS?.Layers || inspectData.RootFS.Layers.length === 0) ? (
+              <p className="text-xs text-zinc-400 italic py-6 text-center">No layers available for this image.</p>
+            ) : (
+              <div className="space-y-2">
+                {inspectData.RootFS.Layers.map((layer, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-mono"
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center font-bold text-[11px] shrink-0">
+                      {index + 1}
+                    </span>
+                    <span className="text-zinc-800 dark:text-zinc-200 truncate flex-1 select-all">{layer}</span>
+                    <button
+                      onClick={() => copyToClipboard(layer, `layer-${index}`)}
+                      className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 shrink-0"
+                      title="Copy layer hash"
+                    >
+                      {copiedKey === `layer-${index}` ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="inspect" className="mt-4">
+          <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-2xl p-5 shadow-xs">
+            <JsonViewer data={inspectData} />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <TagImageModal

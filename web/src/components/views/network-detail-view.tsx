@@ -42,6 +42,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { toast } from 'sonner';
 import { JsonViewer } from '../editor/json-viewer';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -322,120 +331,85 @@ export function NetworkDetailView() {
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-[#23232A]">
-        <button
-          onClick={() => setActiveTab('containers')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'containers'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconBox className="w-4 h-4" />
-          <span>Connected Containers</span>
-          <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
-            {connectedContainersList.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('ipam')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'ipam'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconRoute className="w-4 h-4" />
-          <span>IPAM & Routing</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('options')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'options'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconAdjustments className="w-4 h-4" />
-          <span>Driver Options</span>
-          {network.Options && Object.keys(network.Options).length > 0 && (
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} variant="line">
+        <TabsList>
+          <TabsTrigger value="containers" className="gap-2">
+            <IconBox className="w-4 h-4" />
+            <span>Connected Containers</span>
             <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
-              {Object.keys(network.Options).length}
+              {connectedContainersList.length}
             </span>
-          )}
-        </button>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('labels')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'labels'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconTags className="w-4 h-4" />
-          <span>Labels & Metadata</span>
-        </button>
+          <TabsTrigger value="ipam" className="gap-2">
+            <IconRoute className="w-4 h-4" />
+            <span>IPAM & Routing</span>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('inspect')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'inspect'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconCode className="w-4 h-4" />
-          <span>Raw JSON Inspect</span>
-        </button>
-      </div>
+          <TabsTrigger value="options" className="gap-2">
+            <IconAdjustments className="w-4 h-4" />
+            <span>Driver Options</span>
+            {network.Options && Object.keys(network.Options).length > 0 && (
+              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
+                {Object.keys(network.Options).length}
+              </span>
+            )}
+          </TabsTrigger>
 
-      {/* Tab 1: Connected Containers */}
-      {activeTab === 'containers' && (
-        <div className="space-y-4">
-          {connectedContainersList.length === 0 ? (
-            <Card className="p-12 text-center bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A]">
-              <IconBox className="w-10 h-10 text-zinc-400 mx-auto mb-3" />
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No Containers Attached</h3>
-              <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
-                No active endpoints are currently connected to network &quot;{network.Name}&quot;. Connect an existing container to establish IP routes.
-              </p>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setIsConnectModalOpen(true)}
-                className="mt-4 gap-1.5"
-              >
-                <IconPlus className="w-3.5 h-3.5" />
-                Connect Container
-              </Button>
-            </Card>
-          ) : (
-            <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead>
-                    <tr className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50/70 dark:bg-[#0E0E12] text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
-                      <th className="py-3 px-4">Container Name</th>
-                      <th className="py-3 px-4">IPv4 Address</th>
-                      <th className="py-3 px-4">MAC Address</th>
-                      <th className="py-3 px-4">Endpoint ID</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+          <TabsTrigger value="labels" className="gap-2">
+            <IconTags className="w-4 h-4" />
+            <span>Labels & Metadata</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="inspect" className="gap-2">
+            <IconCode className="w-4 h-4" />
+            <span>Raw JSON Inspect</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Connected Containers */}
+        <TabsContent value="containers" className="mt-4">
+          <div className="space-y-4">
+            {connectedContainersList.length === 0 ? (
+              <Card className="p-12 text-center bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A]">
+                <IconBox className="w-10 h-10 text-zinc-400 mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No Containers Attached</h3>
+                <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
+                  No active endpoints are currently connected to network &quot;{network.Name}&quot;. Connect an existing container to establish IP routes.
+                </p>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setIsConnectModalOpen(true)}
+                  className="mt-4 gap-1.5"
+                >
+                  <IconPlus className="w-3.5 h-3.5" />
+                  Connect Container
+                </Button>
+              </Card>
+            ) : (
+              <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
+                <Table className="font-mono">
+                  <TableHeader>
+                    <TableRow className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50/70 dark:bg-[#0E0E12] text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
+                      <TableHead className="py-3 px-4">Container Name</TableHead>
+                      <TableHead className="py-3 px-4">IPv4 Address</TableHead>
+                      <TableHead className="py-3 px-4">MAC Address</TableHead>
+                      <TableHead className="py-3 px-4">Endpoint ID</TableHead>
+                      <TableHead className="py-3 px-4 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
                     {connectedContainersList.map((endpoint) => {
                       const shortCId = endpoint.id.substring(0, 12);
                       const shortEpId = endpoint.EndpointID.substring(0, 12);
 
                       return (
-                        <tr
+                        <TableRow
                           key={endpoint.id}
                           className="hover:bg-zinc-50 dark:hover:bg-[#16161D] transition-colors"
                         >
-                          <td className="py-3 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
+                          <TableCell className="py-3 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
                             <div className="flex items-center gap-2">
                               <span
                                 onClick={() => navigate(`/containers/${endpoint.id}`)}
@@ -446,17 +420,17 @@ export function NetworkDetailView() {
                               </span>
                               <span className="text-[10px] text-zinc-400 font-normal">({shortCId})</span>
                             </div>
-                          </td>
-                          <td className="py-3 px-4 text-blue-600 dark:text-blue-400 font-medium">
+                          </TableCell>
+                          <TableCell className="py-3 px-4 text-blue-600 dark:text-blue-400 font-medium">
                             {endpoint.IPv4Address || '—'}
-                          </td>
-                          <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                          </TableCell>
+                          <TableCell className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
                             {endpoint.MacAddress || '—'}
-                          </td>
-                          <td className="py-3 px-4 text-zinc-400 text-[11px]">
+                          </TableCell>
+                          <TableCell className="py-3 px-4 text-zinc-400 text-[11px]">
                             {shortEpId}
-                          </td>
-                          <td className="py-3 px-4 text-right">
+                          </TableCell>
+                          <TableCell className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 variant="surface"
@@ -478,165 +452,165 @@ export function NetworkDetailView() {
                                 <IconUnlink className="w-3.5 h-3.5" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Tab 2: IPAM & Routing */}
+        <TabsContent value="ipam" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                IP Address Management (IPAM)
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Subnet CIDR blocks, gateway routing endpoints, and IP assignment ranges.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
+                  IPAM Driver
+                </span>
+                <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  {network.IPAM?.Driver || 'default'}
+                </span>
               </div>
-            </Card>
-          )}
-        </div>
-      )}
 
-      {/* Tab 2: IPAM & Routing */}
-      {activeTab === 'ipam' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              IP Address Management (IPAM)
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Subnet CIDR blocks, gateway routing endpoints, and IP assignment ranges.
-            </p>
-          </div>
+              <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
+                  Subnet CIDR
+                </span>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {ipamConfig?.Subnet || 'None allocated'}
+                </span>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
-              <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
-                IPAM Driver
-              </span>
-              <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-                {network.IPAM?.Driver || 'default'}
-              </span>
+              <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
+                  Default Gateway
+                </span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {ipamConfig?.Gateway || 'None'}
+                </span>
+              </div>
             </div>
 
-            <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
-              <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
-                Subnet CIDR
-              </span>
-              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                {ipamConfig?.Subnet || 'None allocated'}
-              </span>
+            {ipamConfig?.IPRange && (
+              <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
+                <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
+                  Allocated IP Range
+                </span>
+                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                  {ipamConfig.IPRange}
+                </span>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Driver Options */}
+        <TabsContent value="options" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Network Driver Parameters
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Specific flags configured for driver `{network.Driver}`.
+              </p>
             </div>
 
-            <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
-              <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
-                Default Gateway
-              </span>
-              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                {ipamConfig?.Gateway || 'None'}
-              </span>
-            </div>
-          </div>
+            {!network.Options || Object.keys(network.Options).length === 0 ? (
+              <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-200 dark:border-[#202026] rounded-xl">
+                No custom driver options set for this network.
+              </div>
+            ) : (
+              <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden divide-y divide-zinc-200 dark:divide-[#23232A]">
+                {Object.entries(network.Options).map(([key, val]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between p-3 bg-zinc-50/50 dark:bg-[#0A0A0E]/50 font-mono text-xs"
+                  >
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">{key}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-[#1A1A22] px-2 py-0.5 rounded border border-zinc-200 dark:border-[#272730]">
+                      {val}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
 
-          {ipamConfig?.IPRange && (
-            <div className="bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#202026] rounded-xl p-3.5 font-mono">
-              <span className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
-                Allocated IP Range
-              </span>
-              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                {ipamConfig.IPRange}
-              </span>
+        {/* Tab 4: Labels & Metadata */}
+        <TabsContent value="labels" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Labels & Metadata
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Docker labels and system properties.
+              </p>
             </div>
-          )}
-        </Card>
-      )}
 
-      {/* Tab 3: Driver Options */}
-      {activeTab === 'options' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Network Driver Parameters
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Specific flags configured for driver `{network.Driver}`.
-            </p>
-          </div>
+            {!network.Labels || Object.keys(network.Labels).length === 0 ? (
+              <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-200 dark:border-[#202026] rounded-xl">
+                No labels attached to this network.
+              </div>
+            ) : (
+              <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden divide-y divide-zinc-200 dark:divide-[#23232A]">
+                {Object.entries(network.Labels).map(([key, val]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between p-3 bg-zinc-50/50 dark:bg-[#0A0A0E]/50 font-mono text-xs"
+                  >
+                    <span className="font-semibold text-purple-600 dark:text-purple-400">{key}</span>
+                    <span className="text-zinc-800 dark:text-zinc-200">{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
 
-          {!network.Options || Object.keys(network.Options).length === 0 ? (
-            <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-200 dark:border-[#202026] rounded-xl">
-              No custom driver options set for this network.
+        {/* Tab 5: Raw JSON Inspect */}
+        <TabsContent value="inspect" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
+              <div className="flex items-center gap-2">
+                <IconCode className="w-4 h-4 text-blue-500" />
+                <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-mono">
+                  Docker Engine Network Inspect JSON
+                </span>
+              </div>
+              <Button
+                variant="surface"
+                size="sm"
+                onClick={() => copyToClipboard(JSON.stringify(network, null, 2), 'json')}
+                className="gap-1.5 text-xs h-7"
+              >
+                {copiedKey === 'json' ? (
+                  <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <IconCopy className="w-3.5 h-3.5" />
+                )}
+                Copy JSON
+              </Button>
             </div>
-          ) : (
-            <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden divide-y divide-zinc-200 dark:divide-[#23232A]">
-              {Object.entries(network.Options).map(([key, val]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between p-3 bg-zinc-50/50 dark:bg-[#0A0A0E]/50 font-mono text-xs"
-                >
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">{key}</span>
-                  <span className="text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-[#1A1A22] px-2 py-0.5 rounded border border-zinc-200 dark:border-[#272730]">
-                    {val}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Tab 4: Labels & Metadata */}
-      {activeTab === 'labels' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Labels & Metadata
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Docker labels and system properties.
-            </p>
-          </div>
-
-          {!network.Labels || Object.keys(network.Labels).length === 0 ? (
-            <div className="py-12 text-center text-xs text-zinc-500 border border-dashed border-zinc-200 dark:border-[#202026] rounded-xl">
-              No labels attached to this network.
-            </div>
-          ) : (
-            <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden divide-y divide-zinc-200 dark:divide-[#23232A]">
-              {Object.entries(network.Labels).map(([key, val]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between p-3 bg-zinc-50/50 dark:bg-[#0A0A0E]/50 font-mono text-xs"
-                >
-                  <span className="font-semibold text-purple-600 dark:text-purple-400">{key}</span>
-                  <span className="text-zinc-800 dark:text-zinc-200">{val}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Tab 5: Raw JSON Inspect */}
-      {activeTab === 'inspect' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
-            <div className="flex items-center gap-2">
-              <IconCode className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 font-mono">
-                Docker Engine Network Inspect JSON
-              </span>
-            </div>
-            <Button
-              variant="surface"
-              size="sm"
-              onClick={() => copyToClipboard(JSON.stringify(network, null, 2), 'json')}
-              className="gap-1.5 text-xs h-7"
-            >
-              {copiedKey === 'json' ? (
-                <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
-              ) : (
-                <IconCopy className="w-3.5 h-3.5" />
-              )}
-              Copy JSON
-            </Button>
-          </div>
-          <JsonViewer data={network} height="65vh" />
-        </Card>
-      )}
+            <JsonViewer data={network} height="65vh" />
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Connect Container Modal */}
       <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>

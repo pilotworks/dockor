@@ -17,6 +17,14 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { CreateNetworkModal } from '../networks/create-network-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -220,203 +228,201 @@ export function NetworksView() {
 
       {/* Networks Table */}
       <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50/70 dark:bg-[#0E0E12] text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Network Name & ID</th>
-                <th className="py-3 px-4">Driver</th>
-                <th className="py-3 px-4">Scope</th>
-                <th className="py-3 px-4">IPv4 Subnet & Gateway</th>
-                <th className="py-3 px-4">Containers</th>
-                <th className="py-3 px-4">Attributes</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-              {isLoading && (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
-                    Loading Docker networks...
-                  </td>
-                </tr>
-              )}
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50/70 dark:bg-[#0E0E12] text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              <TableHead className="py-3 px-4">Network Name & ID</TableHead>
+              <TableHead className="py-3 px-4">Driver</TableHead>
+              <TableHead className="py-3 px-4">Scope</TableHead>
+              <TableHead className="py-3 px-4">IPv4 Subnet & Gateway</TableHead>
+              <TableHead className="py-3 px-4">Containers</TableHead>
+              <TableHead className="py-3 px-4">Attributes</TableHead>
+              <TableHead className="py-3 px-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
+                  Loading Docker networks...
+                </TableCell>
+              </TableRow>
+            )}
 
-              {!isLoading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <IconNetwork className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-800 dark:text-zinc-300 font-medium">No networks found</p>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">
-                      Create a custom network or change your filter query.
-                    </p>
-                  </td>
-                </tr>
-              )}
+            {!isLoading && filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-16 text-center">
+                  <IconNetwork className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-zinc-800 dark:text-zinc-300 font-medium">No networks found</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Create a custom network or change your filter query.
+                  </p>
+                </TableCell>
+              </TableRow>
+            )}
 
-              {!isLoading &&
-                filtered.map((net) => {
-                  const isSystem = SYSTEM_NETWORKS.has(net.Name.toLowerCase());
-                  const shortId = net.Id.substring(0, 12);
-                  const ipamConfig = net.IPAM?.Config?.[0];
-                  const containerCount = net.Containers ? Object.keys(net.Containers).length : 0;
+            {!isLoading &&
+              filtered.map((net) => {
+                const isSystem = SYSTEM_NETWORKS.has(net.Name.toLowerCase());
+                const shortId = net.Id.substring(0, 12);
+                const ipamConfig = net.IPAM?.Config?.[0];
+                const containerCount = net.Containers ? Object.keys(net.Containers).length : 0;
 
-                  return (
-                    <tr
-                      key={net.Id}
-                      className="hover:bg-zinc-50 dark:hover:bg-[#16161D] transition-colors group select-text"
-                    >
-                      {/* Name & Short ID */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-[#16161E] border border-blue-200 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
-                            <IconNetwork className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span
-                                onClick={() => navigate(`/networks/${net.Id}`)}
-                                className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer font-mono text-xs transition-colors"
-                              >
-                                {net.Name}
-                              </span>
-                              {isSystem && (
-                                <Badge variant="neutral" className="text-[9px]">
-                                  System
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
-                                {shortId}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(net.Id, net.Id)}
-                                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                                title="Copy Full ID"
-                              >
-                                {copiedId === net.Id ? (
-                                  <IconCheck className="w-2.5 h-2.5 text-emerald-500" />
-                                ) : (
-                                  <IconCopy className="w-2.5 h-2.5" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
+                return (
+                  <TableRow
+                    key={net.Id}
+                    className="hover:bg-zinc-50 dark:hover:bg-[#16161D] transition-colors group select-text"
+                  >
+                    {/* Name & Short ID */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-[#16161E] border border-blue-200 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                          <IconNetwork className="w-4 h-4" />
                         </div>
-                      </td>
-
-                      {/* Driver */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <Badge
-                          variant={
-                            net.Driver === 'bridge'
-                              ? 'neutral'
-                              : net.Driver === 'overlay'
-                              ? 'warning'
-                              : 'outline'
-                          }
-                          className="font-mono text-[10px]"
-                        >
-                          {net.Driver}
-                        </Badge>
-                      </td>
-
-                      {/* Scope */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-mono text-zinc-600 dark:text-zinc-400 text-[11px] capitalize">
-                          {net.Scope}
-                        </span>
-                      </td>
-
-                      {/* IPv4 Subnet & Gateway */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        {ipamConfig?.Subnet ? (
-                          <div className="flex flex-col font-mono text-[11px]">
-                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">
-                              {ipamConfig.Subnet}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              onClick={() => navigate(`/networks/${net.Id}`)}
+                              className="font-bold text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer font-mono text-xs transition-colors"
+                            >
+                              {net.Name}
                             </span>
-                            {ipamConfig.Gateway && (
-                              <span className="text-[10px] text-zinc-400">
-                                gw: {ipamConfig.Gateway}
-                              </span>
+                            {isSystem && (
+                              <Badge variant="neutral" className="text-[9px]">
+                                System
+                              </Badge>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-zinc-400 text-[11px]">—</span>
-                        )}
-                      </td>
-
-                      {/* Containers Count */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 font-mono text-xs">
-                          <IconBox className="w-3.5 h-3.5 text-zinc-400" />
-                          <span
-                            className={
-                              containerCount > 0
-                                ? 'font-bold text-zinc-800 dark:text-zinc-200'
-                                : 'text-zinc-400'
-                            }
-                          >
-                            {containerCount}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Attributes */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          {net.Internal && (
-                            <Badge variant="warning" className="text-[10px] gap-1">
-                              <IconShieldLock className="w-2.5 h-2.5" />
-                              Internal
-                            </Badge>
-                          )}
-                          {net.Attachable && (
-                            <Badge variant="neutral" className="text-[10px] gap-1">
-                              <IconArrowsJoin className="w-2.5 h-2.5" />
-                              Attachable
-                            </Badge>
-                          )}
-                          {!net.Internal && !net.Attachable && (
-                            <span className="text-zinc-400 text-[10px]">—</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="surface"
-                            size="sm"
-                            onClick={() => navigate(`/networks/${net.Id}`)}
-                            className="gap-1 text-xs h-7"
-                          >
-                            <span>Inspect</span>
-                            <IconArrowRight className="w-3 h-3 text-zinc-400" />
-                          </Button>
-
-                          {!isSystem && (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleDelete(net.Id, net.Name)}
-                              className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 h-7 w-7"
-                              title="Delete Network"
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                              {shortId}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(net.Id, net.Id)}
+                              className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                              title="Copy Full ID"
                             >
-                              <IconTrash className="w-3.5 h-3.5" />
-                            </Button>
+                              {copiedId === net.Id ? (
+                                <IconCheck className="w-2.5 h-2.5 text-emerald-500" />
+                              ) : (
+                                <IconCopy className="w-2.5 h-2.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Driver */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      <Badge
+                        variant={
+                          net.Driver === 'bridge'
+                            ? 'neutral'
+                            : net.Driver === 'overlay'
+                            ? 'warning'
+                            : 'outline'
+                        }
+                        className="font-mono text-[10px]"
+                      >
+                        {net.Driver}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Scope */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="font-mono text-zinc-600 dark:text-zinc-400 text-[11px] capitalize">
+                        {net.Scope}
+                      </span>
+                    </TableCell>
+
+                    {/* IPv4 Subnet & Gateway */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      {ipamConfig?.Subnet ? (
+                        <div className="flex flex-col font-mono text-[11px]">
+                          <span className="text-zinc-800 dark:text-zinc-200 font-medium">
+                            {ipamConfig.Subnet}
+                          </span>
+                          {ipamConfig.Gateway && (
+                            <span className="text-[10px] text-zinc-400">
+                              gw: {ipamConfig.Gateway}
+                            </span>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
+                      ) : (
+                        <span className="text-zinc-400 text-[11px]">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Containers Count */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 font-mono text-xs">
+                        <IconBox className="w-3.5 h-3.5 text-zinc-400" />
+                        <span
+                          className={
+                            containerCount > 0
+                              ? 'font-bold text-zinc-800 dark:text-zinc-200'
+                              : 'text-zinc-400'
+                          }
+                        >
+                          {containerCount}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Attributes */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {net.Internal && (
+                          <Badge variant="warning" className="text-[10px] gap-1">
+                            <IconShieldLock className="w-2.5 h-2.5" />
+                            Internal
+                          </Badge>
+                        )}
+                        {net.Attachable && (
+                          <Badge variant="neutral" className="text-[10px] gap-1">
+                            <IconArrowsJoin className="w-2.5 h-2.5" />
+                            Attachable
+                          </Badge>
+                        )}
+                        {!net.Internal && !net.Attachable && (
+                          <span className="text-zinc-400 text-[10px]">—</span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="py-3.5 px-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="surface"
+                          size="sm"
+                          onClick={() => navigate(`/networks/${net.Id}`)}
+                          className="gap-1 text-xs h-7"
+                        >
+                          <span>Inspect</span>
+                          <IconArrowRight className="w-3 h-3 text-zinc-400" />
+                        </Button>
+
+                        {!isSystem && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDelete(net.Id, net.Name)}
+                            className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 h-7 w-7"
+                            title="Delete Network"
+                          >
+                            <IconTrash className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+          </TableBody>
+        </Table>
       </Card>
 
       {/* Create Network Modal */}

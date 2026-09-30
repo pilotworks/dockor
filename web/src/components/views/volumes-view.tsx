@@ -24,6 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { CreateVolumeModal } from '../volumes/create-volume-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -282,131 +290,129 @@ export function VolumesView() {
 
       {/* Volumes Table */}
       <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden bg-white dark:bg-[#121216] shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-medium">
-              <tr>
-                <th className="py-2.5 px-4 font-semibold">Volume Name</th>
-                <th className="py-2.5 px-3 font-semibold">Driver</th>
-                <th className="py-2.5 px-3 font-semibold">Mounted Containers</th>
-                <th className="py-2.5 px-3 font-semibold">Status</th>
-                <th className="py-2.5 px-3 font-semibold">Created</th>
-                <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-400">
-                    Loading volume manifests...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <IconDatabase className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-500 font-medium">No volumes found</p>
-                    <p className="text-zinc-400 text-[11px] mt-0.5">
-                      {search ? 'Try adjusting your search criteria' : 'Create a new volume to get started'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((vol) => (
-                  <tr
-                    key={vol.name}
-                    className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors group"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to={`/volumes/${encodeURIComponent(vol.name)}`}
-                          className="font-mono font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 text-left transition-colors cursor-pointer"
-                        >
-                          {vol.name}
-                        </Link>
-                        <button
-                          onClick={() => copyToClipboard(vol.name, vol.name)}
-                          className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-opacity p-0.5"
-                          title="Copy volume name"
-                        >
-                          {copiedName === vol.name ? (
-                            <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
-                          ) : (
-                            <IconCopy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                      <div className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono truncate max-w-xs mt-0.5" title={vol.mountpoint}>
-                        {vol.mountpoint || 'local'}
-                      </div>
-                    </td>
+        <Table>
+          <TableHeader className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-medium">
+            <TableRow>
+              <TableHead className="py-2.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">Volume Name</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">Driver</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">Mounted Containers</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">Status</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold text-zinc-500 dark:text-zinc-400">Created</TableHead>
+              <TableHead className="py-2.5 px-4 font-semibold text-right text-zinc-500 dark:text-zinc-400">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-12 text-center text-zinc-400">
+                  Loading volume manifests...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="py-12 text-center">
+                  <IconDatabase className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-zinc-500 font-medium">No volumes found</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    {search ? 'Try adjusting your search criteria' : 'Create a new volume to get started'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((vol) => (
+                <TableRow
+                  key={vol.name}
+                  className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors group"
+                >
+                  <TableCell className="py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/volumes/${encodeURIComponent(vol.name)}`}
+                        className="font-mono font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 text-left transition-colors cursor-pointer"
+                      >
+                        {vol.name}
+                      </Link>
+                      <button
+                        onClick={() => copyToClipboard(vol.name, vol.name)}
+                        className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-opacity p-0.5"
+                        title="Copy volume name"
+                      >
+                        {copiedName === vol.name ? (
+                          <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        ) : (
+                          <IconCopy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono truncate max-w-xs mt-0.5" title={vol.mountpoint}>
+                      {vol.mountpoint || 'local'}
+                    </div>
+                  </TableCell>
 
-                    <td className="py-3 px-3">
-                      <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                        {vol.driver}
-                      </span>
-                    </td>
+                  <TableCell className="py-3 px-3">
+                    <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                      {vol.driver}
+                    </span>
+                  </TableCell>
 
-                    <td className="py-3 px-3">
-                      {vol.containers && vol.containers.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {vol.containers.map((c) => (
-                            <Link
-                              key={c.id}
-                              to={`/containers/${c.id}`}
-                              className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                            >
-                              <IconBox className="w-2.5 h-2.5" />
-                              <span>{c.name || c.id.substring(0, 8)}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-zinc-400 text-[11px] italic">None</span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <Badge variant={vol.in_use ? 'success' : 'neutral'} dot>
-                        {vol.in_use ? 'In Use' : 'Unused'}
-                      </Badge>
-                    </td>
-
-                    <td className="py-3 px-3 text-zinc-500 font-mono text-[11px]">
-                      {formatDate(vol.created_at)}
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <Link to={`/volumes/${encodeURIComponent(vol.name)}`}>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            title="View details"
+                  <TableCell className="py-3 px-3">
+                    {vol.containers && vol.containers.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {vol.containers.map((c) => (
+                          <Link
+                            key={c.id}
+                            to={`/containers/${c.id}`}
+                            className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                           >
-                            <IconArrowRight className="w-3.5 h-3.5 text-zinc-500" />
-                          </Button>
-                        </Link>
+                            <IconBox className="w-2.5 h-2.5" />
+                            <span>{c.name || c.id.substring(0, 8)}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-400 text-[11px] italic">None</span>
+                    )}
+                  </TableCell>
 
+                  <TableCell className="py-3 px-3">
+                    <Badge variant={vol.in_use ? 'success' : 'neutral'} dot>
+                      {vol.in_use ? 'In Use' : 'Unused'}
+                    </Badge>
+                  </TableCell>
+
+                  <TableCell className="py-3 px-3 text-zinc-500 font-mono text-[11px]">
+                    {formatDate(vol.created_at)}
+                  </TableCell>
+
+                  <TableCell className="py-3 px-4 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <Link to={`/volumes/${encodeURIComponent(vol.name)}`}>
                         <Button
                           size="xs"
                           variant="ghost"
-                          onClick={() => handleDelete(vol.name, vol.in_use)}
-                          className="h-7 w-7 p-0 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-                          title="Delete volume"
+                          className="h-7 w-7 p-0"
+                          title="View details"
                         >
-                          <IconTrash className="w-3.5 h-3.5" />
+                          <IconArrowRight className="w-3.5 h-3.5 text-zinc-500" />
                         </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </Link>
+
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleDelete(vol.name, vol.in_use)}
+                        className="h-7 w-7 p-0 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        title="Delete volume"
+                      >
+                        <IconTrash className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Create Modal */}

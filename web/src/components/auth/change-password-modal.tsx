@@ -74,7 +74,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
               <IconKey className="w-5 h-5" />
             </div>
             <div>
@@ -88,13 +88,13 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
-            <div className="p-3 text-xs rounded-lg bg-destructive/10 border border-destructive/20 text-destructive font-medium">
+            <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-medium">
               {error}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Current Password
             </label>
             <div className="relative">
@@ -110,7 +110,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowOld(!showOld)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1"
               >
                 {showOld ? <IconEyeOff className="w-4 h-4" /> : <IconEye className="w-4 h-4" />}
               </button>
@@ -118,7 +118,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               New Password
             </label>
             <div className="relative">
@@ -134,7 +134,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowNew(!showNew)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1"
               >
                 {showNew ? <IconEyeOff className="w-4 h-4" /> : <IconEye className="w-4 h-4" />}
               </button>
@@ -142,7 +142,7 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Confirm New Password
             </label>
             <Input

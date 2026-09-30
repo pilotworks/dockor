@@ -41,6 +41,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { ComposeEditor } from '../editor/compose-editor';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
@@ -482,81 +483,47 @@ export function StackDetailView() {
       </div>
 
       {/* Main Tabs Navigation */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-[#23232A]">
-        <button
-          onClick={() => setActiveTab('services')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
-            activeTab === 'services'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconBox className="w-4 h-4" />
-          <span>Services & Containers</span>
-          <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
-            {linkedContainers.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('compose')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
-            activeTab === 'compose'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconCode className="w-4 h-4" />
-          <span>Compose Definition</span>
-          {isYamlDirty && (
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unsaved modifications" />
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('env')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
-            activeTab === 'env'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconKey className="w-4 h-4" />
-          <span>Environment</span>
-          {stack.env_vars && Object.keys(stack.env_vars).length > 0 && (
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} variant="line" className="w-full">
+        <TabsList>
+          <TabsTrigger value="services" className="gap-2">
+            <IconBox className="w-4 h-4" />
+            <span>Services & Containers</span>
             <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
-              {Object.keys(stack.env_vars).length}
+              {linkedContainers.length}
             </span>
-          )}
-        </button>
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
-            activeTab === 'logs'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconFileText className="w-4 h-4" />
-          <span>Aggregated Logs</span>
-        </button>
+          <TabsTrigger value="compose" className="gap-2">
+            <IconCode className="w-4 h-4" />
+            <span>Compose Definition</span>
+            {isYamlDirty && (
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Unsaved modifications" />
+            )}
+          </TabsTrigger>
 
-        <button
-          onClick={() => setActiveTab('webhook')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all ${
-            activeTab === 'webhook'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconWebhook className="w-4 h-4" />
-          <span>CI/CD Webhook</span>
-        </button>
-      </div>
+          <TabsTrigger value="env" className="gap-2">
+            <IconKey className="w-4 h-4" />
+            <span>Environment</span>
+            {stack.env_vars && Object.keys(stack.env_vars).length > 0 && (
+              <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#1E1E24] text-zinc-600 dark:text-zinc-300 font-mono">
+                {Object.keys(stack.env_vars).length}
+              </span>
+            )}
+          </TabsTrigger>
 
-      {/* Tab 1: Services & Containers */}
-      {activeTab === 'services' && (
+          <TabsTrigger value="logs" className="gap-2">
+            <IconFileText className="w-4 h-4" />
+            <span>Aggregated Logs</span>
+          </TabsTrigger>
+
+          <TabsTrigger value="webhook" className="gap-2">
+            <IconWebhook className="w-4 h-4" />
+            <span>CI/CD Webhook</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Services & Containers */}
+        <TabsContent value="services" className="mt-4">
         <div className="space-y-4">
           {linkedContainers.length === 0 ? (
             <Card className="p-12 text-center bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A]">
@@ -691,11 +658,11 @@ export function StackDetailView() {
             </div>
           )}
         </div>
-      )}
+        </TabsContent>
 
-      {/* Tab 2: Compose YAML Editor */}
-      {activeTab === 'compose' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
+        {/* Tab 2: Compose YAML Editor */}
+        <TabsContent value="compose" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
           {/* Editor Header Bar */}
           <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
             <div className="flex items-center gap-2">
@@ -776,11 +743,11 @@ export function StackDetailView() {
             />
           </div>
         </Card>
-      )}
+        </TabsContent>
 
-      {/* Tab 3: Environment Variables */}
-      {activeTab === 'env' && (
-        <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 shadow-sm space-y-4">
+        {/* Tab 3: Environment Variables */}
+        <TabsContent value="env" className="mt-4">
+          <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-4 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -863,11 +830,11 @@ export function StackDetailView() {
             </div>
           )}
         </Card>
-      )}
+        </TabsContent>
 
-      {/* Tab 4: Aggregated Logs */}
-      {activeTab === 'logs' && (
-        <Card className="bg-[#09090C] border-[#222228] p-4 text-zinc-100 shadow-sm space-y-3 font-mono">
+        {/* Tab 4: Aggregated Logs */}
+        <TabsContent value="logs" className="mt-4">
+          <Card className="bg-[#09090C] border-[#222228] p-4 text-zinc-100 shadow-sm space-y-3 font-mono">
           {/* Log Controls Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-[#1E1E24] pb-3">
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -929,11 +896,11 @@ export function StackDetailView() {
             <div ref={logsBottomRef} />
           </div>
         </Card>
-      )}
+        </TabsContent>
 
-      {/* Tab 5: CI/CD Webhook */}
-      {activeTab === 'webhook' && (
-        <div className="space-y-5">
+        {/* Tab 5: CI/CD Webhook */}
+        <TabsContent value="webhook" className="mt-4">
+          <div className="space-y-5">
           <Card className="p-6 bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-[#1E1E24] pb-5">
               <div className="flex items-center gap-3">
@@ -1064,7 +1031,8 @@ export function StackDetailView() {
             </div>
           </Card>
         </div>
-      )}
+        </TabsContent>
+      </Tabs>
 
       {/* Quick Modals */}
       {terminalContainer && (

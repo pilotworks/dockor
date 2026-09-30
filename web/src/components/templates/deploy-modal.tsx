@@ -13,6 +13,7 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   IconRefresh,
   IconAlertTriangle,
@@ -168,50 +169,34 @@ export function DeployModal() {
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center bg-zinc-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg border border-zinc-300 dark:border-zinc-700/80">
-            <button
-              type="button"
-              onClick={() => setViewMode('form')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
-                viewMode === 'form'
-                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              )}
-              title="Form View Only"
-            >
-              <IconForms className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Form</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('split')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
-                viewMode === 'split'
-                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              )}
-              title="Split View (Form + YAML)"
-            >
-              <IconColumns className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Split</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('yaml')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 font-medium transition-all',
-                viewMode === 'yaml'
-                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              )}
-              title="Compose YAML Editor Only"
-            >
-              <IconCode className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">YAML Editor</span>
-            </button>
-          </div>
+          <Tabs value={viewMode} onValueChange={(val) => setViewMode(val as any)}>
+            <TabsList className="h-8 p-0.5">
+              <TabsTrigger
+                value="form"
+                className="gap-1.5 px-2.5 py-1 text-xs"
+                title="Form View Only"
+              >
+                <IconForms className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Form</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="split"
+                className="gap-1.5 px-2.5 py-1 text-xs"
+                title="Split View (Form + YAML)"
+              >
+                <IconColumns className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Split</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="yaml"
+                className="gap-1.5 px-2.5 py-1 text-xs"
+                title="Compose YAML Editor Only"
+              >
+                <IconCode className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">YAML Editor</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Body (Supports Split, Form Only, or YAML Editor Only) */}

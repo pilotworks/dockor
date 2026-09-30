@@ -103,11 +103,11 @@ export function UsersView() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <IconUsers className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <IconUsers className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             Users &amp; Access Control
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             Manage operator accounts, assign RBAC roles, and control access permissions.
           </p>
         </div>

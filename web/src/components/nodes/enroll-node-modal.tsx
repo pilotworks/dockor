@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { Button } from '../ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import {
   IconServer,
   IconX,
@@ -110,151 +111,129 @@ export function EnrollNodeModal({ isOpen, onClose, onSuccess }: EnrollNodeModalP
         </div>
 
         {/* Mode Tabs */}
-        <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-[#23232A]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('docker')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all ${
-              activeTab === 'docker'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            <IconBrandDocker className="w-4 h-4" />
-            <span>Docker Container (Recommended)</span>
-          </button>
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} variant="line" className="w-full">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="docker" className="gap-1.5">
+              <IconBrandDocker className="w-4 h-4" />
+              <span>Docker Container (Recommended)</span>
+            </TabsTrigger>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('shell')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all ${
-              activeTab === 'shell'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            <IconTerminal2 className="w-4 h-4" />
-            <span>Linux Shell Script</span>
-          </button>
+            <TabsTrigger value="shell" className="gap-1.5">
+              <IconTerminal2 className="w-4 h-4" />
+              <span>Linux Shell Script</span>
+            </TabsTrigger>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('manual')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all ${
-              activeTab === 'manual'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            <IconSettings className="w-4 h-4" />
-            <span>Manual Config</span>
-          </button>
-        </div>
+            <TabsTrigger value="manual" className="gap-1.5">
+              <IconSettings className="w-4 h-4" />
+              <span>Manual Config</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-zinc-500">
-            <IconLoader2 className="w-5 h-5 animate-spin text-blue-500" />
-            <span>Generating secure enrollment token...</span>
-          </div>
-        ) : enrollmentData ? (
-          <div className="space-y-4">
-            {activeTab === 'docker' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    Run on Remote Server:
-                  </span>
-                  <Button
-                    size="xs"
-                    variant="surface"
-                    onClick={() => handleCopy(enrollmentData.docker_command, 'docker')}
-                    className="gap-1 text-[11px] h-7"
-                  >
-                    {copiedKey === 'docker' ? (
-                      <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    ) : (
-                      <IconCopy className="w-3.5 h-3.5" />
-                    )}
-                    <span>Copy Command</span>
-                  </Button>
-                </div>
-
-                <pre className="p-3.5 bg-zinc-950 text-zinc-200 font-mono text-[11px] rounded-xl border border-zinc-800 overflow-x-auto select-all leading-relaxed whitespace-pre-wrap">
-                  {enrollmentData.docker_command}
-                </pre>
-              </div>
-            )}
-
-            {activeTab === 'shell' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    Install & Run via Shell Script:
-                  </span>
-                  <Button
-                    size="xs"
-                    variant="surface"
-                    onClick={() => handleCopy(enrollmentData.install_command, 'shell')}
-                    className="gap-1 text-[11px] h-7"
-                  >
-                    {copiedKey === 'shell' ? (
-                      <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    ) : (
-                      <IconCopy className="w-3.5 h-3.5" />
-                    )}
-                    <span>Copy Script</span>
-                  </Button>
-                </div>
-
-                <pre className="p-3.5 bg-zinc-950 text-zinc-200 font-mono text-[11px] rounded-xl border border-zinc-800 overflow-x-auto select-all leading-relaxed whitespace-pre-wrap">
-                  {enrollmentData.install_command}
-                </pre>
-              </div>
-            )}
-
-            {activeTab === 'manual' && (
-              <div className="space-y-3 text-xs">
-                <div className="space-y-1">
-                  <span className="text-zinc-500 font-medium">Control Plane WebSocket URL</span>
-                  <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#22222A] font-mono text-[11px] select-all">
-                    {enrollmentData.server_url}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-zinc-500 font-medium">Node Enrollment Pairing Key</span>
-                  <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#22222A] font-mono text-[11px] select-all">
-                    {enrollmentData.token}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-[#1E1E24]">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchEnrollment}
-                className="gap-1.5 text-xs text-zinc-500"
-              >
-                <IconRefresh className="w-3.5 h-3.5" />
-                <span>Refresh Key</span>
-              </Button>
-
-              <Button
-                size="sm"
-                variant="surface"
-                onClick={() => {
-                  onSuccess?.();
-                  onClose();
-                }}
-                className="text-xs"
-              >
-                Done
-              </Button>
+          {loading ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-zinc-500">
+              <IconLoader2 className="w-5 h-5 animate-spin text-blue-500" />
+              <span>Generating secure enrollment token...</span>
             </div>
-          </div>
-        ) : null}
+          ) : enrollmentData ? (
+            <div className="space-y-4">
+              <TabsContent value="docker" className="mt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                      Run on Remote Server:
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="surface"
+                      onClick={() => handleCopy(enrollmentData.docker_command, 'docker')}
+                      className="gap-1 text-[11px] h-7"
+                    >
+                      {copiedKey === 'docker' ? (
+                        <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      ) : (
+                        <IconCopy className="w-3.5 h-3.5" />
+                      )}
+                      <span>Copy Command</span>
+                    </Button>
+                  </div>
+
+                  <pre className="p-3.5 bg-zinc-950 text-zinc-200 font-mono text-[11px] rounded-xl border border-zinc-800 overflow-x-auto select-all leading-relaxed whitespace-pre-wrap">
+                    {enrollmentData.docker_command}
+                  </pre>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="shell" className="mt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                      Install & Run via Shell Script:
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="surface"
+                      onClick={() => handleCopy(enrollmentData.install_command, 'shell')}
+                      className="gap-1 text-[11px] h-7"
+                    >
+                      {copiedKey === 'shell' ? (
+                        <IconCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      ) : (
+                        <IconCopy className="w-3.5 h-3.5" />
+                      )}
+                      <span>Copy Script</span>
+                    </Button>
+                  </div>
+
+                  <pre className="p-3.5 bg-zinc-950 text-zinc-200 font-mono text-[11px] rounded-xl border border-zinc-800 overflow-x-auto select-all leading-relaxed whitespace-pre-wrap">
+                    {enrollmentData.install_command}
+                  </pre>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="manual" className="mt-4">
+                <div className="space-y-3 text-xs">
+                  <div className="space-y-1">
+                    <span className="text-zinc-500 font-medium">Control Plane WebSocket URL</span>
+                    <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#22222A] font-mono text-[11px] select-all">
+                      {enrollmentData.server_url}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-zinc-500 font-medium">Node Enrollment Pairing Key</span>
+                    <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-[#0A0A0E] border border-zinc-200 dark:border-[#22222A] font-mono text-[11px] select-all">
+                      {enrollmentData.token}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-[#1E1E24]">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchEnrollment}
+                  className="gap-1.5 text-xs text-zinc-500"
+                >
+                  <IconRefresh className="w-3.5 h-3.5" />
+                  <span>Refresh Key</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="surface"
+                  onClick={() => {
+                    onSuccess?.();
+                    onClose();
+                  }}
+                  className="text-xs"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </Tabs>
       </div>
     </div>
   );

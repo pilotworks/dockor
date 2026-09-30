@@ -19,6 +19,14 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { toast } from 'sonner';
 import { api } from '../../lib/api';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -248,121 +256,119 @@ export function ContainerFileBrowser({ containerId }: ContainerFileBrowserProps)
 
       {/* Directory Table */}
       <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl overflow-hidden bg-white dark:bg-[#121216] shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-sans text-[11px]">
-              <tr>
-                <th className="py-2.5 px-4 font-semibold">Name</th>
-                <th className="py-2.5 px-3 font-semibold w-24">Size</th>
-                <th className="py-2.5 px-3 font-semibold w-28">Permissions</th>
-                <th className="py-2.5 px-3 font-semibold w-36">Modified</th>
-                <th className="py-2.5 px-4 font-semibold text-right w-28 font-sans">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-              {/* Parent Directory Link */}
-              {currentPath !== '/' && (
-                <tr
-                  onClick={handleParentDirectory}
-                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer select-none transition-colors group"
+        <Table className="font-mono">
+          <TableHeader className="bg-zinc-50 dark:bg-[#15151A] border-b border-zinc-200 dark:border-[#23232A] text-zinc-500 dark:text-zinc-400 font-sans text-[11px]">
+            <TableRow>
+              <TableHead className="py-2.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">Name</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold w-24 text-zinc-500 dark:text-zinc-400">Size</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold w-28 text-zinc-500 dark:text-zinc-400">Permissions</TableHead>
+              <TableHead className="py-2.5 px-3 font-semibold w-36 text-zinc-500 dark:text-zinc-400">Modified</TableHead>
+              <TableHead className="py-2.5 px-4 font-semibold text-right w-28 font-sans text-zinc-500 dark:text-zinc-400">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+            {/* Parent Directory Link */}
+            {currentPath !== '/' && (
+              <TableRow
+                onClick={handleParentDirectory}
+                className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer select-none transition-colors group"
+              >
+                <TableCell colSpan={5} className="py-2 px-4 text-zinc-500 flex items-center gap-2">
+                  <IconCornerLeftUp className="w-4 h-4 text-zinc-400 group-hover:text-blue-500" />
+                  <span className="font-semibold text-xs">.. (Parent Directory)</span>
+                </TableCell>
+              </TableRow>
+            )}
+
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-16 text-center">
+                  <IconLoader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" />
+                  <span className="text-zinc-400 font-sans text-xs">Reading container filesystem...</span>
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-12 text-center text-zinc-400 font-sans text-xs">
+                  {filterQuery ? 'No matching files or directories' : 'This directory is empty'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredItems.map((item) => (
+                <TableRow
+                  key={item.path}
+                  className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer"
+                  onClick={() => handleOpenFile(item)}
                 >
-                  <td colSpan={5} className="py-2 px-4 text-zinc-500 flex items-center gap-2">
-                    <IconCornerLeftUp className="w-4 h-4 text-zinc-400 group-hover:text-blue-500" />
-                    <span className="font-semibold text-xs">.. (Parent Directory)</span>
-                  </td>
-                </tr>
-              )}
+                  <TableCell className="py-2.5 px-4">
+                    <div className="flex items-center gap-2.5">
+                      {getFileIcon(item)}
+                      <span
+                        className={`font-mono text-xs ${
+                          item.is_dir
+                            ? 'font-bold text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400'
+                            : 'text-zinc-800 dark:text-zinc-200'
+                        }`}
+                      >
+                        {item.name}
+                      </span>
+                      {item.is_symlink && (
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-zinc-400">
+                          symlink {item.link_target ? `→ ${item.link_target}` : ''}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
 
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-16 text-center">
-                    <IconLoader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto mb-2" />
-                    <span className="text-zinc-400 font-sans text-xs">Reading container filesystem...</span>
-                  </td>
-                </tr>
-              ) : filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-400 font-sans text-xs">
-                    {filterQuery ? 'No matching files or directories' : 'This directory is empty'}
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => (
-                  <tr
-                    key={item.path}
-                    className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/30 transition-colors group cursor-pointer"
-                    onClick={() => handleOpenFile(item)}
-                  >
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        {getFileIcon(item)}
-                        <span
-                          className={`font-mono text-xs ${
-                            item.is_dir
-                              ? 'font-bold text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400'
-                              : 'text-zinc-800 dark:text-zinc-200'
-                          }`}
-                        >
-                          {item.name}
-                        </span>
-                        {item.is_symlink && (
-                          <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono text-zinc-400">
-                            symlink {item.link_target ? `→ ${item.link_target}` : ''}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
+                  <TableCell className="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 text-xs">
+                    {item.is_dir ? '--' : formatBytes(item.size)}
+                  </TableCell>
 
-                    <td className="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 text-xs">
-                      {item.is_dir ? '--' : formatBytes(item.size)}
-                    </td>
+                  <TableCell className="py-2.5 px-3 text-zinc-400 font-mono text-[11px]">
+                    {item.mode || '--'}
+                  </TableCell>
 
-                    <td className="py-2.5 px-3 text-zinc-400 font-mono text-[11px]">
-                      {item.mode || '--'}
-                    </td>
+                  <TableCell className="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 text-[11px] truncate max-w-[140px]">
+                    {item.mod_time ? new Date(item.mod_time).toLocaleDateString() : '--'}
+                  </TableCell>
 
-                    <td className="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 text-[11px] truncate max-w-[140px]">
-                      {item.mod_time ? new Date(item.mod_time).toLocaleDateString() : '--'}
-                    </td>
-
-                    <td className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        {!item.is_dir && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenFile(item)}
-                              className="p-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                              title="View / Edit file"
-                            >
-                              <IconEdit className="w-3.5 h-3.5" />
-                            </button>
-                            <a
-                              href={api.getContainerFileDownloadUrl(containerId, item.path)}
-                              download={item.name}
-                              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                              title="Download file"
-                            >
-                              <IconDownload className="w-3.5 h-3.5" />
-                            </a>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteItem(item)}
-                          className="p-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                          title="Delete"
-                        >
-                          <IconTrash className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                  <TableCell className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      {!item.is_dir && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenFile(item)}
+                            className="p-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            title="View / Edit file"
+                          >
+                            <IconEdit className="w-3.5 h-3.5" />
+                          </button>
+                          <a
+                            href={api.getContainerFileDownloadUrl(containerId, item.path)}
+                            download={item.name}
+                            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            title="Download file"
+                          >
+                            <IconDownload className="w-3.5 h-3.5" />
+                          </a>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(item)}
+                        className="p-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        title="Delete"
+                      >
+                        <IconTrash className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Embedded File Editor Modal */}

@@ -40,6 +40,15 @@ import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -455,107 +464,52 @@ export function ContainerDetailView() {
       </Card>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-[#202026] overflow-x-auto select-none">
-        <button
-          type="button"
-          onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'overview'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconInfoCircle className="w-4 h-4" />
-          <span>Overview & Specs</span>
-        </button>
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} variant="line">
+        <TabsList className="overflow-x-auto">
+          <TabsTrigger value="overview" className="gap-2">
+            <IconInfoCircle className="w-4 h-4" />
+            <span>Overview & Specs</span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('network')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'network'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconNetwork className="w-4 h-4" />
-          <span>Networking</span>
-          {connectedNetworkList.length > 0 && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-              {connectedNetworkList.length}
-            </span>
-          )}
-        </button>
+          <TabsTrigger value="network" className="gap-2">
+            <IconNetwork className="w-4 h-4" />
+            <span>Networking</span>
+            {connectedNetworkList.length > 0 && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                {connectedNetworkList.length}
+              </span>
+            )}
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('logs')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'logs'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconFileText className="w-4 h-4" />
-          <span>Live Logs</span>
-        </button>
+          <TabsTrigger value="logs" className="gap-2">
+            <IconFileText className="w-4 h-4" />
+            <span>Live Logs</span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('terminal')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'terminal'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconTerminal2 className="w-4 h-4" />
-          <span>Web Terminal</span>
-        </button>
+          <TabsTrigger value="terminal" className="gap-2">
+            <IconTerminal2 className="w-4 h-4" />
+            <span>Web Terminal</span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('stats')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'stats'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconActivity className="w-4 h-4" />
-          <span>Telemetry & Metrics</span>
-        </button>
+          <TabsTrigger value="stats" className="gap-2">
+            <IconActivity className="w-4 h-4" />
+            <span>Telemetry & Metrics</span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('files')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'files'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconFolder className="w-4 h-4" />
-          <span>Files</span>
-        </button>
+          <TabsTrigger value="files" className="gap-2">
+            <IconFolder className="w-4 h-4" />
+            <span>Files</span>
+          </TabsTrigger>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('inspect')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
-            activeTab === 'inspect'
-              ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <IconCode className="w-4 h-4" />
-          <span>Raw Inspect</span>
-        </button>
-      </div>
+          <TabsTrigger value="inspect" className="gap-2">
+            <IconCode className="w-4 h-4" />
+            <span>Raw Inspect</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Panels */}
-      {activeTab === 'overview' && (
-        <div className="space-y-5">
+        {/* Tab Panels */}
+        <TabsContent value="overview" className="mt-4">
+          <div className="space-y-5">
           {/* Top Row: Ports & Networks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Port Forwardings */}
@@ -670,38 +624,36 @@ export function ContainerDetailView() {
                 No storage volumes or bind mounts attached
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead>
-                    <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] uppercase text-zinc-400">
-                      <th className="py-2">Type</th>
-                      <th className="py-2">Source / Host Path</th>
-                      <th className="py-2">Destination / Target</th>
-                      <th className="py-2 text-right">Mode</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                    {(container.mounts || []).map((m, idx) => (
-                      <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
-                        <td className="py-2.5">
-                          <Badge variant="neutral" className="text-[10px] uppercase">{m.type}</Badge>
-                        </td>
-                        <td className="py-2.5 text-zinc-800 dark:text-zinc-200 truncate max-w-xs" title={m.source}>
-                          {m.name || m.source}
-                        </td>
-                        <td className="py-2.5 text-blue-600 dark:text-blue-400 font-semibold truncate max-w-xs" title={m.destination}>
-                          {m.destination}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <span className={`text-[10px] font-semibold ${m.rw ? 'text-emerald-500' : 'text-amber-500'}`}>
-                            {m.rw ? 'Read-Write (rw)' : 'Read-Only (ro)'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table className="font-mono">
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] uppercase text-zinc-400">
+                    <TableHead className="py-2">Type</TableHead>
+                    <TableHead className="py-2">Source / Host Path</TableHead>
+                    <TableHead className="py-2">Destination / Target</TableHead>
+                    <TableHead className="py-2 text-right">Mode</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                  {(container.mounts || []).map((m, idx) => (
+                    <TableRow key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                      <TableCell className="py-2.5">
+                        <Badge variant="neutral" className="text-[10px] uppercase">{m.type}</Badge>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-zinc-800 dark:text-zinc-200 truncate max-w-xs" title={m.source}>
+                        {m.name || m.source}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-blue-600 dark:text-blue-400 font-semibold truncate max-w-xs" title={m.destination}>
+                        {m.destination}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <span className={`text-[10px] font-semibold ${m.rw ? 'text-emerald-500' : 'text-amber-500'}`}>
+                          {m.rw ? 'Read-Write (rw)' : 'Read-Only (ro)'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </Card>
 
@@ -724,16 +676,16 @@ export function ContainerDetailView() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] uppercase text-zinc-400 sticky top-0 bg-white dark:bg-[#121216]">
-                    <th className="py-2 w-1/3">Key</th>
-                    <th className="py-2">Value</th>
-                    <th className="py-2 text-right w-20">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+            <div className="max-h-80 overflow-y-auto">
+              <Table className="font-mono">
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] uppercase text-zinc-400 sticky top-0 bg-white dark:bg-[#121216]">
+                    <TableHead className="py-2 w-1/3">Key</TableHead>
+                    <TableHead className="py-2">Value</TableHead>
+                    <TableHead className="py-2 text-right w-20">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                   {(container.config?.env || [])
                     .filter((e) => e.toLowerCase().includes(envSearch.toLowerCase()))
                     .map((envStr, idx) => {
@@ -744,12 +696,12 @@ export function ContainerDetailView() {
                       const revealed = showSecrets[key];
 
                       return (
-                        <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
-                          <td className="py-2 font-semibold text-zinc-800 dark:text-zinc-200">{key}</td>
-                          <td className="py-2 text-zinc-600 dark:text-zinc-400 break-all">
+                        <TableRow key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                          <TableCell className="py-2 font-semibold text-zinc-800 dark:text-zinc-200">{key}</TableCell>
+                          <TableCell className="py-2 text-zinc-600 dark:text-zinc-400 break-all">
                             {isSecret && !revealed ? '••••••••••••••••' : val}
-                          </td>
-                          <td className="py-2 text-right">
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               {isSecret && (
                                 <button
@@ -770,19 +722,19 @@ export function ContainerDetailView() {
                                 {copiedKey === `env-${idx}` ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
                               </button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Card>
         </div>
-      )}
+      </TabsContent>
 
       {/* Networking & Ports Tab */}
-      {activeTab === 'network' && (
+      <TabsContent value="network" className="mt-4">
         <div className="space-y-5">
           {/* Top Network Action & Overview Card */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#23232A] rounded-xl p-4 shadow-sm">
@@ -976,38 +928,38 @@ export function ContainerDetailView() {
             </div>
           </Card>
         </div>
-      )}
+      </TabsContent>
 
       {/* Embedded Live Logs Tab */}
-      {activeTab === 'logs' && (
+      <TabsContent value="logs" className="mt-4">
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-0 overflow-hidden shadow-sm">
           <EmbeddedContainerLogs containerId={container.id} />
         </Card>
-      )}
+      </TabsContent>
 
       {/* Embedded Terminal Tab */}
-      {activeTab === 'terminal' && (
+      <TabsContent value="terminal" className="mt-4">
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-0 overflow-hidden shadow-sm">
           <EmbeddedContainerTerminal containerId={container.id} />
         </Card>
-      )}
+      </TabsContent>
 
       {/* Embedded Telemetry Tab */}
-      {activeTab === 'stats' && (
+      <TabsContent value="stats" className="mt-4">
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-5 shadow-sm">
           <EmbeddedContainerStats containerId={container.id} />
         </Card>
-      )}
+      </TabsContent>
 
       {/* Container Files Tab */}
-      {activeTab === 'files' && (
+      <TabsContent value="files" className="mt-4">
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] p-0 overflow-hidden shadow-sm">
           <ContainerFileBrowser containerId={container.id} />
         </Card>
-      )}
+      </TabsContent>
 
       {/* Raw JSON Inspect Tab */}
-      {activeTab === 'inspect' && (
+      <TabsContent value="inspect" className="mt-4">
         <Card className="bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-[#0E0E12] border-b border-zinc-200 dark:border-[#202026]">
             <div className="flex items-center gap-2">
@@ -1031,7 +983,8 @@ export function ContainerDetailView() {
           </div>
           <JsonViewer data={container} height="65vh" />
         </Card>
-      )}
+      </TabsContent>
+    </Tabs>
 
       {/* Connect Container to Network Modal */}
       <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>

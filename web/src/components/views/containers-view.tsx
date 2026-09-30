@@ -21,6 +21,14 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -210,49 +218,48 @@ export function ContainersView() {
 
       {/* High-Density DevOps Table */}
       <div className="border border-zinc-200 dark:border-[#23232A] rounded-xl bg-white dark:bg-[#111115] overflow-hidden shadow-sm transition-colors">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0C0C0F] text-[10px] uppercase font-semibold text-zinc-500 dark:text-zinc-400 tracking-wider">
-                <th className="py-3 px-3 w-9 text-center">
-                  <div className="flex items-center justify-center">
-                    <Checkbox
-                      size="sm"
-                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                      indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
-                      onChange={toggleSelectAll}
-                    />
-                  </div>
-                </th>
-                <th className="py-3 px-4 w-32">Status</th>
-                <th className="py-3 px-4">Container</th>
-                <th className="py-3 px-4">Image</th>
-                <th className="py-3 px-4">Ports</th>
-                <th className="py-3 px-4">Stack</th>
-                <th className="py-3 px-4 text-right w-28">Actions</th>
-              </tr>
-            </thead>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0C0C0F] text-[10px] uppercase font-semibold text-zinc-500 dark:text-zinc-400 tracking-wider">
+              <TableHead className="py-3 px-3 w-9 text-center">
+                <div className="flex items-center justify-center">
+                  <Checkbox
+                    size="sm"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
+                    onChange={toggleSelectAll}
+                  />
+                </div>
+              </TableHead>
+              <TableHead className="py-3 px-4 w-32">Status</TableHead>
+              <TableHead className="py-3 px-4">Container</TableHead>
+              <TableHead className="py-3 px-4">Image</TableHead>
+              <TableHead className="py-3 px-4">Ports</TableHead>
+              <TableHead className="py-3 px-4">Stack</TableHead>
+              <TableHead className="py-3 px-4 text-right w-28">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
 
-            <tbody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
-              {isLoading && (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
-                    Loading containers from Docker Engine...
-                  </td>
-                </tr>
-              )}
+          <TableBody className="divide-y divide-zinc-100 dark:divide-[#1C1C22]">
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-zinc-500 text-xs">
+                  Loading containers from Docker Engine...
+                </TableCell>
+              </TableRow>
+            )}
 
-              {!isLoading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <IconBox className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-800 dark:text-zinc-400 font-medium">No containers found</p>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-0.5">
-                      Launch a stack from the template catalog to deploy containers.
-                    </p>
-                  </td>
-                </tr>
-              )}
+            {!isLoading && filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-16 text-center">
+                  <IconBox className="w-8 h-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
+                  <p className="text-zinc-800 dark:text-zinc-400 font-medium">No containers found</p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-0.5">
+                    Launch a stack from the template catalog to deploy containers.
+                  </p>
+                </TableCell>
+              </TableRow>
+            )}
 
               {!isLoading &&
                 filtered.map((c) => {
@@ -262,7 +269,7 @@ export function ContainersView() {
                   const isSelected = selectedIds.has(c.id);
 
                   return (
-                    <tr
+                    <TableRow
                       key={c.id}
                       className={cn(
                         'hover:bg-zinc-100/80 dark:hover:bg-zinc-800/50 transition-colors group select-text',
@@ -270,7 +277,7 @@ export function ContainersView() {
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center">
                           <Checkbox
                             size="sm"
@@ -278,9 +285,9 @@ export function ContainersView() {
                             onChange={(e) => toggleSelect(c.id, e as any)}
                           />
                         </div>
-                      </td>
+                      </TableCell>
                       {/* Status */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <IconCircleFilled
                             className={cn(
@@ -297,10 +304,10 @@ export function ContainersView() {
                             {isRunning ? 'Running' : 'Stopped'}
                           </span>
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Name & Short ID */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap">
                         <div
                           className="flex flex-col cursor-pointer group/name inline-flex"
                           onClick={() => navigate(`/containers/${c.id}`)}
@@ -311,17 +318,17 @@ export function ContainersView() {
                           </span>
                           <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{shortId}</span>
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Image */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap">
                         <span className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-900/80 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800">
                           {c.image}
                         </span>
-                      </td>
+                      </TableCell>
 
                       {/* Ports */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap">
                         {c.ports && c.ports.filter((p) => p.public_port).length > 0 ? (
                           <div className="flex flex-wrap gap-1 max-w-[320px]">
                             {c.ports
@@ -353,10 +360,10 @@ export function ContainersView() {
                         ) : (
                           <span className="text-zinc-400 dark:text-zinc-600 text-[11px]">—</span>
                         )}
-                      </td>
+                      </TableCell>
 
                       {/* Stack Name */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap">
                         {c.stack_name ? (
                           <Badge variant="neutral" className="text-[10px] font-mono">
                             {c.stack_name}
@@ -364,10 +371,10 @@ export function ContainersView() {
                         ) : (
                           <span className="text-zinc-600 text-[11px]">standalone</span>
                         )}
-                      </td>
+                      </TableCell>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-right">
+                      <TableCell className="py-3.5 px-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="surface"
@@ -479,13 +486,12 @@ export function ContainersView() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
       </div>
 
       {/* Floating Batch Action Toolbar */}

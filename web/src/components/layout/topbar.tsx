@@ -229,43 +229,43 @@ export function Topbar() {
         {/* User Session Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-border/70 hover:border-border hover:bg-muted/50 transition-colors focus:outline-none">
-              <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[11px]">
+            <button className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/80 dark:bg-zinc-900/80 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors focus:outline-none cursor-pointer">
+              <div className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-center font-bold text-[11px]">
                 {user?.username ? user.username.substring(0, 2).toUpperCase() : 'OP'}
               </div>
-              <span className="text-xs font-medium text-foreground max-w-[80px] truncate">
+              <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100 max-w-[80px] truncate">
                 {user?.username || 'Operator'}
               </span>
               <Badge
                 variant="outline"
                 className={`text-[9px] px-1 py-0 h-3.5 border-0 font-semibold ${
                   user?.role === 'admin'
-                    ? 'bg-indigo-500/15 text-indigo-400'
+                    ? 'bg-indigo-500/15 text-indigo-500 dark:text-indigo-400'
                     : user?.role === 'viewer'
-                    ? 'bg-amber-500/15 text-amber-400'
-                    : 'bg-blue-500/15 text-blue-400'
+                    ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400'
+                    : 'bg-blue-500/15 text-blue-500 dark:text-blue-400'
                 }`}
               >
                 {user?.role || 'dev'}
               </Badge>
-              <IconChevronDown className="w-3 h-3 text-muted-foreground" />
+              <IconChevronDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-xs font-semibold leading-none">{user?.username}</p>
-                <p className="text-[11px] leading-none text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-xs font-semibold leading-none text-zinc-900 dark:text-zinc-100">{user?.username}</p>
+                <p className="text-[11px] leading-none text-zinc-500 dark:text-zinc-400 truncate">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)} className="cursor-pointer">
-              <IconKey className="w-3.5 h-3.5 text-muted-foreground" />
+              <IconKey className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
               <span>Change Password</span>
             </DropdownMenuItem>
             {user?.role === 'admin' && (
               <DropdownMenuItem onClick={() => navigate('/users')} className="cursor-pointer">
-                <IconShield className="w-3.5 h-3.5 text-muted-foreground" />
+                <IconShield className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
                 <span>Manage Users</span>
               </DropdownMenuItem>
             )}
@@ -275,7 +275,7 @@ export function Topbar() {
                 logout();
                 navigate('/login');
               }}
-              className="text-destructive focus:text-destructive cursor-pointer"
+              className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-950/40 cursor-pointer"
             >
               <IconLogout className="w-3.5 h-3.5" />
               <span>Sign Out</span>
