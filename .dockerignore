@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+web/node_modules
+web/dist
+bin
+dist
+data
+*.db*
+*.log
+.DS_Store

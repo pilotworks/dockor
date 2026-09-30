@@ -117,7 +117,7 @@ volumes:
 
 #### Prerequisites
 - **Go** >= 1.24
-- **Node.js** >= 20 & **pnpm**
+- **Bun** >= 1.0
 - **Docker Engine** running locally
 
 #### Running the Backend:
@@ -130,8 +130,8 @@ The backend initializes SQLite in `./data/dockor.db`, generates master encryptio
 #### Running the Frontend (Hot-Reload Mode):
 ```bash
 cd web
-pnpm install
-pnpm dev
+bun install
+bun run dev
 ```
 The Vite development server runs at **`http://localhost:5173`** with hot module replacement and proxies API/WebSocket calls to the Go backend on port 9000.
 

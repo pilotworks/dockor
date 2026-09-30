@@ -20,14 +20,14 @@ build-backend:
 build-frontend:
 	@echo "Building React frontend..."
 	@if [ -d "web" ] && [ -f "web/package.json" ]; then \
-		cd web && pnpm install && pnpm run build; \
+		cd web && bun install && bun run build; \
 	fi
 
 dev-backend:
 	go run ./cmd/dockor
 
 dev-frontend:
-	cd web && pnpm dev
+	cd web && bun run dev
 
 test:
 	go test -v -race ./...

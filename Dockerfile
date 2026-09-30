@@ -1,13 +1,13 @@
 # Stage 1: Build Frontend UI
-FROM node:20-alpine AS frontend-builder
+FROM oven/bun:1 AS frontend-builder
 WORKDIR /app/web
-COPY web/package.json web/pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install
+COPY web/package.json web/bun.lock* ./
+RUN bun install --frozen-lockfile
 COPY web/ ./
-RUN pnpm run build
+RUN bun run build
 
 # Stage 2: Build Go Backend
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:alpine AS backend-builder
 WORKDIR /app
 RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
