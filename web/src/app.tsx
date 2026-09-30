@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/query-client';
 import { Shell } from './components/layout/shell';
+import { DashboardView } from './components/views/dashboard-view';
 import { TemplatesView } from './components/views/templates-view';
 import { StacksView } from './components/views/stacks-view';
 import { ContainersView } from './components/views/containers-view';
@@ -23,7 +24,8 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Shell />}>
-            <Route path="/" element={<Navigate to="/templates" replace />} />
+            <Route path="/" element={<DashboardView />} />
+            <Route path="/dashboard" element={<DashboardView />} />
             <Route path="/templates" element={<TemplatesView />} />
             <Route path="/stacks" element={<StacksView />} />
             <Route path="/stacks/:id" element={<StackDetailView />} />
@@ -36,7 +38,7 @@ export function App() {
             <Route path="/images" element={<ImagesView />} />
             <Route path="/images/:id" element={<ImageDetailView />} />
             <Route path="/nodes" element={<NodesView />} />
-            <Route path="*" element={<Navigate to="/templates" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

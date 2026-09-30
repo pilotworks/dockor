@@ -1,296 +1,349 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { useDeployStack } from '../../hooks/use-stacks';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
 import {
   IconStack2,
-  IconCode,
-  IconCopy,
-  IconLoader2,
+  IconX,
+  IconPlus,
+  IconTrash,
+  IconFileCode,
   IconRocket,
-  IconTemplate,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
-import { ComposeEditor } from '../editor/compose-editor';
-import { useDeployStack } from '../../hooks/use-stacks';
 
 interface CreateStackModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (stackName: string) => void;
+  onSuccess?: (stackId: string) => void;
 }
 
-const PRESETS: Record<string, { label: string; desc: string; yaml: string }> = {
+const PRESETS: Record<string, { label: string; yaml: string }> = {
+  blank: {
+    label: 'Custom / Blank',
+    yaml: `services:
+  app:
+    image: alpine:latest
+    command: ["sleep", "infinity"]
+    restart: unless-stopped
+`,
+  },
   nginx: {
     label: 'Nginx Web Server',
-    desc: 'Lightweight alpine web server with port 80 exposed',
     yaml: `services:
   web:
     image: nginx:alpine
-    container_name: my-web-server
-    restart: unless-stopped
+    container_name: web-server
     ports:
       - "8080:80"
+    restart: unless-stopped
 `,
   },
-  node_redis: {
-    label: 'Node.js & Redis',
-    desc: 'App server paired with high-performance in-memory cache',
+  noderedis: {
+    label: 'Node.js + Redis Cache',
     yaml: `services:
   app:
     image: node:20-alpine
     container_name: node-service
-    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - REDIS_HOST=redis
+      - REDIS_HOST=cache
     depends_on:
-      - redis
+      - cache
+    restart: unless-stopped
 
-  redis:
+  cache:
     image: redis:alpine
     container_name: redis-cache
     restart: unless-stopped
-    ports:
-      - "6379:6379"
 `,
   },
   postgres: {
-    label: 'PostgreSQL Database',
-    desc: 'Relational database with persistent storage volume',
+    label: 'PostgreSQL + pgAdmin',
     yaml: `services:
   db:
     image: postgres:16-alpine
     container_name: postgres-db
-    restart: always
     environment:
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: changeme_secret
-      POSTGRES_DB: appdb
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: \${DB_USER:-dockor}
+      POSTGRES_PASSWORD: \${DB_PASSWORD:-secretpassword}
+      POSTGRES_DB: \${DB_NAME:-dockor_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin-ui
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@dockor.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    restart: unless-stopped
 
 volumes:
   pgdata:
 `,
   },
   wordpress: {
-    label: 'WordPress & MySQL',
-    desc: 'Complete CMS stack with MySQL backend and persistent volumes',
+    label: 'WordPress + MariaDB',
     yaml: `services:
   wordpress:
     image: wordpress:latest
-    container_name: wordpress-site
-    restart: always
+    container_name: wordpress-app
     ports:
-      - "8000:80"
+      - "8080:80"
     environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp_user
       WORDPRESS_DB_PASSWORD: wp_password
       WORDPRESS_DB_NAME: wordpress
     volumes:
       - wp_data:/var/www/html
     depends_on:
       - db
+    restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: mariadb:10.11
     container_name: wordpress-db
-    restart: always
     environment:
+      MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
+      MYSQL_USER: wp_user
       MYSQL_PASSWORD: wp_password
-      MYSQL_RANDOM_ROOT_PASSWORD: '1'
     volumes:
       - db_data:/var/lib/mysql
+    restart: unless-stopped
 
 volumes:
   wp_data:
   db_data:
 `,
   },
-  blank: {
-    label: 'Blank Template',
-    desc: 'Clean starting point for your custom services',
-    yaml: `services:
-  example:
-    image: alpine:latest
-    command: ["sleep", "infinity"]
-`,
-  },
 };
 
 export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModalProps) {
   const [name, setName] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState<string>('nginx');
-  const [yaml, setYaml] = useState<string>(PRESETS.nginx.yaml);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState('nginx');
+  const [composeYaml, setComposeYaml] = useState(PRESETS.nginx.yaml);
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([]);
 
   const deployMutation = useDeployStack();
 
+  if (!isOpen) return null;
+
   const handleSelectPreset = (key: string) => {
     setSelectedPreset(key);
-    setYaml(PRESETS[key].yaml);
-    if (!name) {
-      setName(key === 'blank' ? 'custom-stack' : key + '-stack');
+    if (PRESETS[key]) {
+      setComposeYaml(PRESETS[key].yaml);
     }
   };
 
-  const handleDeploy = async () => {
-    const trimmedName = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
-    if (!trimmedName) {
-      toast.error('Please enter a valid stack name');
+  const handleAddEnv = () => setEnvVars([...envVars, { key: '', value: '' }]);
+  const handleRemoveEnv = (index: number) => setEnvVars(envVars.filter((_, i) => i !== index));
+  const handleEnvChange = (index: number, field: 'key' | 'value', val: string) => {
+    const updated = [...envVars];
+    updated[index][field] = val;
+    setEnvVars(updated);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    if (!cleanName) {
+      toast.error('Stack name is required');
       return;
     }
 
-    if (!yaml.trim()) {
-      toast.error('Compose definition cannot be empty');
+    if (!composeYaml.trim()) {
+      toast.error('Compose YAML content is required');
       return;
     }
 
-    setIsSubmitting(true);
+    const variables: Record<string, any> = {};
+    for (const item of envVars) {
+      if (item.key.trim()) {
+        variables[item.key.trim()] = item.value.trim();
+      }
+    }
+
     try {
-      await deployMutation.mutateAsync({
-        name: trimmedName,
-        compose_yaml: yaml,
+      const result = await deployMutation.mutateAsync({
+        name: cleanName,
+        compose_yaml: composeYaml.trim(),
+        variables: Object.keys(variables).length > 0 ? variables : undefined,
       });
-      toast.success(`Stack "${trimmedName}" deployed successfully!`);
-      onSuccess?.(trimmedName);
+
+      toast.success('Stack deployed successfully!', {
+        description: `Stack "${cleanName}" is running.`,
+      });
       onClose();
+      if (onSuccess && result?.id) {
+        onSuccess(result.id);
+      }
     } catch (err: any) {
       toast.error('Failed to deploy stack', { description: err.message });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl h-[86vh] p-0 flex flex-col bg-white dark:bg-[#0F0F13] border-zinc-200 dark:border-[#272730] shadow-2xl rounded-2xl overflow-hidden transition-colors">
-        {/* Top Header */}
-        <DialogHeader className="px-6 py-3.5 border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex flex-row items-center justify-between shrink-0 transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-3xl rounded-2xl bg-white dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] p-6 shadow-2xl space-y-5 text-zinc-900 dark:text-zinc-100 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner">
-              <IconStack2 className="w-4 h-4" />
+            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40">
+              <IconStack2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Create Custom Compose Stack
-                </DialogTitle>
-                <Badge variant="neutral" className="text-[10px] font-mono">
-                  Compose v2
-                </Badge>
-              </div>
-              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Author or paste standard docker-compose.yml with live Monaco validation
-              </DialogDescription>
+              <h3 className="text-base font-semibold">Deploy New Compose Stack</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Define services, networking, and volumes using standard Docker Compose YAML.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors p-1"
+          >
+            <IconX className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Stack Name & Preset Selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Stack Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="e.g. my-web-app"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="font-mono text-xs"
+                required
+              />
+              <span className="text-[11px] text-zinc-500">
+                Alphanumeric characters, dashes or underscores
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                Starter Template Preset
+              </label>
+              <select
+                value={selectedPreset}
+                onChange={(e) => handleSelectPreset(e.target.value)}
+                className="w-full text-xs h-9 px-3 rounded-lg border border-zinc-200 dark:border-[#272730] bg-zinc-50 dark:bg-[#16161C] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+              >
+                {Object.entries(PRESETS).map(([key, item]) => (
+                  <option key={key} value={key}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-zinc-500">
+                Quickly populate with common production architectures
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mr-6">
-            <Button
-              variant="surface"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(yaml);
-                toast.success('Compose YAML copied to clipboard');
-              }}
-              className="h-7 px-2.5 text-xs gap-1"
-              title="Copy YAML"
-            >
-              <IconCopy className="w-3.5 h-3.5" />
-              Copy
-            </Button>
+          {/* Compose YAML Editor */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <IconFileCode className="w-4 h-4 text-purple-500" />
+                <span>docker-compose.yml</span>
+              </label>
+              <Badge variant="outline" className="text-[10px] font-mono">
+                YAML Spec 3.8+
+              </Badge>
+            </div>
+            <div className="relative rounded-xl border border-zinc-200 dark:border-[#272730] bg-zinc-950 overflow-hidden shadow-inner">
+              <textarea
+                value={composeYaml}
+                onChange={(e) => setComposeYaml(e.target.value)}
+                rows={12}
+                className="w-full p-4 font-mono text-xs text-zinc-200 bg-transparent focus:outline-none resize-y leading-relaxed"
+                placeholder="version: '3.8'&#10;services:&#10;  ..."
+                required
+              />
+            </div>
+          </div>
 
+          {/* Environment Variables */}
+          <div className="space-y-2 pt-2 border-t border-zinc-100 dark:border-[#1F1F24]">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Environment Variables (.env)
+                </span>
+                <p className="text-[11px] text-zinc-500">
+                  Variables injected into container environment and compose interpolation.
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddEnv} className="gap-1 text-xs">
+                <IconPlus className="w-3.5 h-3.5" /> Add Variable
+              </Button>
+            </div>
+
+            {envVars.length > 0 && (
+              <div className="space-y-2 max-h-40 overflow-y-auto p-1">
+                {envVars.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      placeholder="KEY (e.g. PORT)"
+                      value={item.key}
+                      onChange={(e) => handleEnvChange(idx, 'key', e.target.value)}
+                      className="font-mono text-xs flex-1"
+                    />
+                    <Input
+                      placeholder="VALUE"
+                      value={item.value}
+                      onChange={(e) => handleEnvChange(idx, 'value', e.target.value)}
+                      className="font-mono text-xs flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEnv(idx)}
+                      className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors"
+                      title="Remove variable"
+                    >
+                      <IconTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-zinc-200 dark:border-[#23232A]">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={deployMutation.isPending}>
+              Cancel
+            </Button>
             <Button
+              type="submit"
               variant="primary"
               size="sm"
-              disabled={isSubmitting || !name.trim()}
-              onClick={handleDeploy}
-              className="h-7 px-3.5 text-xs gap-1.5 shadow-sm"
-              title="Deploy Stack Now"
+              disabled={deployMutation.isPending}
+              className="gap-1.5"
             >
-              {isSubmitting ? (
-                <IconLoader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <IconRocket className="w-3.5 h-3.5" />
-              )}
-              {isSubmitting ? 'Deploying...' : 'Deploy Stack'}
+              <IconRocket className="w-4 h-4" />
+              <span>{deployMutation.isPending ? 'Deploying...' : 'Deploy Stack'}</span>
             </Button>
           </div>
-        </DialogHeader>
-
-        {/* Configuration Bar: Stack Name & Starter Presets */}
-        <div className="px-6 py-3 border-b border-zinc-200 dark:border-[#1F1F24] bg-white dark:bg-[#121216] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 transition-colors">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <label htmlFor="stack-name" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">
-              Stack Name:
-            </label>
-            <Input
-              id="stack-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
-              placeholder="e.g. production-api"
-              className="flex-1 h-8 font-mono"
-            />
-          </div>
-
-          {/* Quick Presets Pill Selector */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-            <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 mr-1 flex items-center gap-1">
-              <IconTemplate className="w-3 h-3" />
-              Presets:
-            </span>
-            {Object.entries(PRESETS).map(([key, item]) => {
-              const isSelected = selectedPreset === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleSelectPreset(key)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                    isSelected
-                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 border border-transparent'
-                  }`}
-                  title={item.desc}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Monaco Compose Editor Main Body */}
-        <div className="flex-1 w-full h-full min-h-0 bg-white dark:bg-[#09090B]">
-          <ComposeEditor
-            value={yaml}
-            onChange={(val) => setYaml(val || '')}
-            readOnly={false}
-          />
-        </div>
-
-        {/* Modal Footer info */}
-        <div className="px-6 py-2.5 border-t border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0A0A0D] flex items-center justify-between shrink-0 text-[11px] text-zinc-500 dark:text-zinc-400 font-mono transition-colors">
-          <div className="flex items-center gap-2">
-            <IconCode className="w-3.5 h-3.5 text-zinc-400" />
-            <span>docker-compose.yml</span>
-          </div>
-          <div>
-            <span>Validated by Monaco Language Services</span>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </form>
+      </div>
+    </div>
   );
 }

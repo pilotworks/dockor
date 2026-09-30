@@ -58,3 +58,34 @@ type ImageSummaryItem struct {
 type PullImageRequest struct {
 	Image string `json:"image"`
 }
+
+type PortMapping struct {
+	HostPort      string `json:"host_port"`
+	ContainerPort string `json:"container_port"`
+	Protocol      string `json:"protocol,omitempty"` // "tcp" or "udp"
+}
+
+type VolumeMount struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Mode        string `json:"mode,omitempty"` // "rw" or "ro"
+}
+
+type CreateContainerRequest struct {
+	Name          string            `json:"name,omitempty"`
+	Image         string            `json:"image"`
+	Cmd           []string          `json:"cmd,omitempty"`
+	Env           []string          `json:"env,omitempty"`
+	Ports         []PortMapping     `json:"ports,omitempty"`
+	Volumes       []VolumeMount     `json:"volumes,omitempty"`
+	Network       string            `json:"network,omitempty"`
+	RestartPolicy string            `json:"restart_policy,omitempty"` // "no", "always", "unless-stopped", "on-failure"
+	AutoRemove    bool              `json:"auto_remove,omitempty"`
+	Start         bool              `json:"start,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty"`
+}
+
+type CreateContainerResponse struct {
+	ID       string   `json:"id"`
+	Warnings []string `json:"warnings,omitempty"`
+}

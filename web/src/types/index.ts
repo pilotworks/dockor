@@ -345,4 +345,35 @@ export interface ImageInspectResponse {
   };
 }
 
+export interface PortMappingPayload {
+  host_port: string;
+  container_port: string;
+  protocol?: 'tcp' | 'udp';
+}
+
+export interface VolumeMountPayload {
+  source: string;
+  destination: string;
+  mode?: 'rw' | 'ro';
+}
+
+export interface CreateContainerPayload {
+  name?: string;
+  image: string;
+  cmd?: string[];
+  env?: string[];
+  ports?: PortMappingPayload[];
+  volumes?: VolumeMountPayload[];
+  network?: string;
+  restart_policy?: 'no' | 'always' | 'unless-stopped' | 'on-failure';
+  auto_remove?: boolean;
+  start?: boolean;
+  labels?: Record<string, string>;
+}
+
+export interface CreateContainerResult {
+  id: string;
+  warnings?: string[];
+}
+
 

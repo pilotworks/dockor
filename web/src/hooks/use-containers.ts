@@ -32,3 +32,15 @@ export function useContainerAction() {
     },
   });
 }
+
+export function useCreateContainer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: import('../types').CreateContainerPayload) => api.createContainer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+      queryClient.invalidateQueries({ queryKey: ['system', 'df'] });
+    },
+  });
+}

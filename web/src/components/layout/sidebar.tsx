@@ -1,4 +1,5 @@
 import {
+  IconLayoutDashboard,
   IconTemplate,
   IconStack2,
   IconBox,
@@ -42,6 +43,11 @@ export function Sidebar() {
   const isDockerConnected = health?.docker === 'connected';
 
   const navItems = [
+    {
+      path: '/',
+      label: 'Dashboard',
+      icon: IconLayoutDashboard,
+    },
     {
       path: '/templates',
       label: 'App Catalog',
@@ -151,7 +157,10 @@ export function Sidebar() {
 
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname.startsWith(item.path) || (item.path === '/templates' && location.pathname === '/');
+            const isActive =
+              item.path === '/'
+                ? location.pathname === '/' || location.pathname === '/dashboard'
+                : location.pathname.startsWith(item.path);
 
             return (
               <NavLink

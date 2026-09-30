@@ -83,3 +83,17 @@ func TestImageHandlers_NoDockerService(t *testing.T) {
 		t.Fatalf("expected 503, got %d", w.Code)
 	}
 }
+
+func TestCreateContainerHandler_NoDockerService(t *testing.T) {
+	h, _, tempDir := setupTestHandler(t)
+	defer os.RemoveAll(tempDir)
+
+	body := []byte(`{"image":"nginx:alpine","name":"test-web"}`)
+	req := httptest.NewRequest("POST", "/api/v1/containers", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateContainer(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", w.Code)
+	}
+}
+

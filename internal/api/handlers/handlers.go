@@ -486,6 +486,32 @@ func (h *APIHandler) ListContainers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, containers)
 }
 
+func (h *APIHandler) CreateContainer(w http.ResponseWriter, r *http.Request) {
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
+
+	var req models.CreateContainerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
+		return
+	}
+
+	if req.Image == "" {
+		writeError(w, http.StatusBadRequest, "Container image is required")
+		return
+	}
+
+	res, err := h.dockerSvc.CreateContainer(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to create container: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, res)
+}
+
 func (h *APIHandler) GetContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if h.dockerSvc == nil {

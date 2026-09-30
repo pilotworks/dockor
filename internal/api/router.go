@@ -61,6 +61,7 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 		// Containers
 		r.Route("/containers", func(r chi.Router) {
 			r.Get("/", h.ListContainers)
+			r.Post("/", h.CreateContainer)
 			r.Get("/{id}", h.GetContainer)
 			r.Post("/{id}/start", h.StartContainer)
 			r.Post("/{id}/stop", h.StopContainer)

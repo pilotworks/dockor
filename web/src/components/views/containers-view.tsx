@@ -14,6 +14,7 @@ import {
   IconCircleFilled,
   IconMaximize,
   IconLoader2,
+  IconPlus,
 } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -31,6 +32,7 @@ import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { ContainerStatsModal } from '../containers/container-stats-modal';
 import { SystemPruneModal } from '../system/system-prune-modal';
+import { CreateContainerModal } from '../containers/create-container-modal';
 
 export function ContainersView() {
   const navigate = useNavigate();
@@ -39,6 +41,7 @@ export function ContainersView() {
   const [filterState, setFilterState] = useState<'all' | 'running' | 'stopped'>('all');
   const [search, setSearch] = useState('');
   const [isPruneOpen, setIsPruneOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [terminalContainer, setTerminalContainer] = useState<{ id: string; name: string } | null>(null);
   const [logsContainer, setLogsContainer] = useState<{ id: string; name: string } | null>(null);
   const [statsContainer, setStatsContainer] = useState<{ id: string; name: string } | null>(null);
@@ -125,6 +128,16 @@ export function ContainersView() {
           >
             <IconTrash className="w-3.5 h-3.5 text-amber-500" />
             <span className="hidden sm:inline">Prune</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="h-8 px-2.5 text-xs gap-1.5 shrink-0"
+          >
+            <IconPlus className="w-3.5 h-3.5" />
+            <span>Run Container</span>
           </Button>
         </div>
       </div>
@@ -419,6 +432,13 @@ export function ContainersView() {
       <SystemPruneModal
         isOpen={isPruneOpen}
         onClose={() => setIsPruneOpen(false)}
+      />
+
+      {/* Create Container Modal */}
+      <CreateContainerModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={(id) => navigate(`/containers/${id}`)}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
@@ -126,6 +127,107 @@ func (ds *DockerService) ListContainers(ctx context.Context, all bool) ([]models
 	}
 
 	return results, nil
+}
+
+func (ds *DockerService) CreateContainer(ctx context.Context, req models.CreateContainerRequest) (*models.CreateContainerResponse, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	exposedPorts := network.PortSet{}
+	portBindings := network.PortMap{}
+	for _, p := range req.Ports {
+		if p.ContainerPort == "" {
+			continue
+		}
+		proto := strings.ToLower(p.Protocol)
+		if proto != "udp" {
+			proto = "tcp"
+		}
+		portKey, err := network.ParsePort(fmt.Sprintf("%s/%s", p.ContainerPort, proto))
+		if err != nil {
+			continue
+		}
+		exposedPorts[portKey] = struct{}{}
+		if p.HostPort != "" {
+			portBindings[portKey] = []network.PortBinding{
+				{
+					HostIP:   netip.IPv4Unspecified(),
+					HostPort: p.HostPort,
+				},
+			}
+		}
+	}
+
+	binds := make([]string, 0, len(req.Volumes))
+	for _, v := range req.Volumes {
+		if v.Source == "" || v.Destination == "" {
+			continue
+		}
+		mode := v.Mode
+		if mode == "" {
+			mode = "rw"
+		}
+		binds = append(binds, fmt.Sprintf("%s:%s:%s", v.Source, v.Destination, mode))
+	}
+
+	restartPolicy := container.RestartPolicy{
+		Name: container.RestartPolicyMode(req.RestartPolicy),
+	}
+	if req.RestartPolicy == "" {
+		restartPolicy.Name = container.RestartPolicyDisabled
+	}
+
+	hostConfig := &container.HostConfig{
+		PortBindings:  portBindings,
+		Binds:         binds,
+		RestartPolicy: restartPolicy,
+		AutoRemove:    req.AutoRemove,
+	}
+	if req.Network != "" {
+		hostConfig.NetworkMode = container.NetworkMode(req.Network)
+	}
+
+	config := &container.Config{
+		Image:        req.Image,
+		Cmd:          req.Cmd,
+		Env:          req.Env,
+		Labels:       req.Labels,
+		ExposedPorts: exposedPorts,
+	}
+
+	var netConfig *network.NetworkingConfig
+	if req.Network != "" && req.Network != "bridge" && req.Network != "default" && req.Network != "host" {
+		netConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				req.Network: {},
+			},
+		}
+	}
+
+	res, err := ds.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Name:             req.Name,
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: netConfig,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container: %w", err)
+	}
+
+	if req.Start {
+		if _, err := ds.cli.ContainerStart(ctx, res.ID, client.ContainerStartOptions{}); err != nil {
+			return &models.CreateContainerResponse{
+				ID:       res.ID,
+				Warnings: append(res.Warnings, "Created but failed to start: "+err.Error()),
+			}, nil
+		}
+	}
+
+	return &models.CreateContainerResponse{
+		ID:       res.ID,
+		Warnings: res.Warnings,
+	}, nil
 }
 
 func (ds *DockerService) StartContainer(ctx context.Context, id string) error {
