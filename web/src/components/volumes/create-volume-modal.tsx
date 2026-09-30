@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCreateVolume } from '../../hooks/use-volumes';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -15,6 +15,17 @@ export function CreateVolumeModal({ isOpen, onClose }: CreateVolumeModalProps) {
   const [driver, setDriver] = useState('local');
   const [labels, setLabels] = useState<{ key: string; value: string }[]>([]);
   const [driverOpts, setDriverOpts] = useState<{ key: string; value: string }[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const createMutation = useCreateVolume();
 
@@ -72,8 +83,16 @@ export function CreateVolumeModal({ isOpen, onClose }: CreateVolumeModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#282832] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#282832] rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-[#22222a]">
           <div className="flex items-center gap-2.5">

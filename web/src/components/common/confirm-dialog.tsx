@@ -67,7 +67,11 @@ export function ConfirmDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleCancel()}>
-      <DialogContent className="sm:max-w-md p-6 gap-5">
+      <DialogContent
+        className="sm:max-w-md p-6 gap-5"
+        onPointerDownOutside={() => handleCancel()}
+        onInteractOutside={() => handleCancel()}
+      >
         <div className="flex items-start gap-4">
           {renderIcon()}
 

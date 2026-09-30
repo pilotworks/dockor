@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
@@ -33,6 +33,14 @@ export function PullImageModal({ isOpen, onClose }: PullImageModalProps) {
   const [isPulling, setIsPulling] = useState(false);
   const [pullEvents, setPullEvents] = useState<PullEvent[]>([]);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isPulling) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, isPulling]);
 
   if (!isOpen) return null;
 
@@ -77,8 +85,18 @@ export function PullImageModal({ isOpen, onClose }: PullImageModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#282832] rounded-2xl w-full max-w-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isPulling) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-[#121216] border border-zinc-200 dark:border-[#282832] rounded-2xl w-full max-w-xl shadow-xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-[#22222a] shrink-0">
           <div className="flex items-center gap-2.5">
