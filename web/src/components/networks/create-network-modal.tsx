@@ -8,6 +8,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -176,41 +177,25 @@ export function CreateNetworkModal({ isOpen, onClose, onSuccess }: CreateNetwork
           </div>
 
           {/* Flags / Checkboxes */}
-          <div className="pt-2 space-y-2.5 border-t border-zinc-100 dark:border-[#1E1E24]">
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isInternal}
-                onChange={(e) => setIsInternal(e.target.checked)}
-                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="text-xs">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+          <div className="pt-2 space-y-3 border-t border-zinc-100 dark:border-[#1E1E24]">
+            <Checkbox
+              checked={isInternal}
+              onCheckedChange={setIsInternal}
+              label={
+                <span className="flex items-center gap-1.5 font-semibold text-zinc-800 dark:text-zinc-200">
                   <IconShieldLock className="w-3.5 h-3.5 text-amber-500" />
                   Internal Network (Isolated)
                 </span>
-                <p className="text-[11px] text-zinc-500">
-                  Block outbound internet access and external ingress; only containers in this network can communicate.
-                </p>
-              </div>
-            </label>
+              }
+              description="Block outbound internet access and external ingress; only containers in this network can communicate."
+            />
 
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAttachable}
-                onChange={(e) => setIsAttachable(e.target.checked)}
-                className="rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-              />
-              <div className="text-xs">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  Enable Container Attachable
-                </span>
-                <p className="text-[11px] text-zinc-500">
-                  Allows manual attachment of standalone docker containers to this network.
-                </p>
-              </div>
-            </label>
+            <Checkbox
+              checked={isAttachable}
+              onCheckedChange={setIsAttachable}
+              label="Enable Container Attachable"
+              description="Allows manual attachment of standalone docker containers to this network."
+            />
           </div>
 
           {/* Actions */}

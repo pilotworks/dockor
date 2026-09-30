@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 import { toast } from 'sonner';
 import { api } from '../../lib/api';
 
@@ -169,22 +170,14 @@ export function CommitContainerModal({
           </div>
 
           {/* Pause checkbox */}
-          <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer select-none">
-            <input
-              type="checkbox"
+          <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+            <Checkbox
               checked={pause}
-              onChange={(e) => setPause(e.target.checked)}
-              className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+              onCheckedChange={setPause}
+              label="Pause container during commit"
+              description="Freezes container processes while capturing the filesystem layer to prevent data corruption."
             />
-            <div>
-              <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200 block">
-                Pause container during commit
-              </span>
-              <span className="text-[11px] text-zinc-400 block">
-                Freezes container processes while capturing the filesystem layer to prevent data corruption.
-              </span>
-            </div>
-          </label>
+          </div>
 
           {/* Action buttons */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-[#202026]">

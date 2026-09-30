@@ -19,6 +19,7 @@ import {
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -214,12 +215,14 @@ export function ContainersView() {
             <thead>
               <tr className="border-b border-zinc-200 dark:border-[#1F1F24] bg-zinc-50 dark:bg-[#0C0C0F] text-[10px] uppercase font-semibold text-zinc-500 dark:text-zinc-400 tracking-wider">
                 <th className="py-3 px-3 w-9 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                    onChange={toggleSelectAll}
-                    className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
-                  />
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      size="sm"
+                      checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                      indeterminate={selectedIds.size > 0 && selectedIds.size < filtered.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </div>
                 </th>
                 <th className="py-3 px-4 w-32">Status</th>
                 <th className="py-3 px-4">Container</th>
@@ -268,12 +271,13 @@ export function ContainersView() {
                     >
                       {/* Checkbox */}
                       <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => toggleSelect(c.id, e as any)}
-                          className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5"
-                        />
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            size="sm"
+                            checked={isSelected}
+                            onChange={(e) => toggleSelect(c.id, e as any)}
+                          />
+                        </div>
                       </td>
                       {/* Status */}
                       <td className="py-3.5 px-4 whitespace-nowrap">

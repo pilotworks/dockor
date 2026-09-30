@@ -5,6 +5,7 @@ import { useNetworks } from '../../hooks/use-networks';
 import { useVolumes } from '../../hooks/use-volumes';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -454,26 +455,18 @@ export function CreateContainerModal({ isOpen, onClose, onSuccess }: CreateConta
           </div>
 
           {/* Checkboxes: Start immediately & Auto-remove */}
-          <div className="flex items-center gap-6 pt-2 border-t border-zinc-100 dark:border-[#1F1F24]">
-            <label className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={autoStart}
-                onChange={(e) => setAutoStart(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 border-zinc-300 dark:border-zinc-700 focus:ring-purple-500 cursor-pointer"
-              />
-              <span>Start container automatically</span>
-            </label>
+          <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-zinc-100 dark:border-[#1F1F24]">
+            <Checkbox
+              checked={autoStart}
+              onCheckedChange={setAutoStart}
+              label="Start container automatically"
+            />
 
-            <label className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={autoRemove}
-                onChange={(e) => setAutoRemove(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 border-zinc-300 dark:border-zinc-700 focus:ring-purple-500 cursor-pointer"
-              />
-              <span>Auto-remove on exit (--rm)</span>
-            </label>
+            <Checkbox
+              checked={autoRemove}
+              onCheckedChange={setAutoRemove}
+              label="Auto-remove on exit (--rm)"
+            />
           </div>
 
           {/* Actions */}

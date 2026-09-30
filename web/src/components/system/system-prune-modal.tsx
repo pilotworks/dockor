@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSystemDiskUsage, useSystemPrune } from '../../hooks/use-system';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 import {
   IconTrash,
   IconX,
@@ -131,11 +132,9 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
           {/* Containers */}
           <label className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-[#23232A] hover:bg-zinc-50 dark:hover:bg-[#16161C] transition-colors cursor-pointer select-none">
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={pruneContainers}
-                onChange={(e) => setPruneContainers(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-zinc-300 dark:border-zinc-700 focus:ring-blue-500 cursor-pointer"
+                onCheckedChange={setPruneContainers}
               />
               <div className="flex items-center gap-2">
                 <IconBox className="w-4 h-4 text-emerald-500" />
@@ -155,11 +154,9 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
           {/* Images */}
           <label className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-[#23232A] hover:bg-zinc-50 dark:hover:bg-[#16161C] transition-colors cursor-pointer select-none">
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={pruneImages}
-                onChange={(e) => setPruneImages(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-zinc-300 dark:border-zinc-700 focus:ring-blue-500 cursor-pointer"
+                onCheckedChange={setPruneImages}
               />
               <div className="flex items-center gap-2">
                 <IconDisc className="w-4 h-4 text-purple-500" />
@@ -179,11 +176,9 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
           {/* Build Cache */}
           <label className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-[#23232A] hover:bg-zinc-50 dark:hover:bg-[#16161C] transition-colors cursor-pointer select-none">
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={pruneBuildCache}
-                onChange={(e) => setPruneBuildCache(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-zinc-300 dark:border-zinc-700 focus:ring-blue-500 cursor-pointer"
+                onCheckedChange={setPruneBuildCache}
               />
               <div className="flex items-center gap-2">
                 <IconCpu className="w-4 h-4 text-blue-500" />
@@ -203,11 +198,9 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
           {/* Networks */}
           <label className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-[#23232A] hover:bg-zinc-50 dark:hover:bg-[#16161C] transition-colors cursor-pointer select-none">
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={pruneNetworks}
-                onChange={(e) => setPruneNetworks(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-zinc-300 dark:border-zinc-700 focus:ring-blue-500 cursor-pointer"
+                onCheckedChange={setPruneNetworks}
               />
               <div className="flex items-center gap-2">
                 <IconNetwork className="w-4 h-4 text-cyan-500" />
@@ -222,11 +215,9 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
           {/* Volumes (with warning) */}
           <label className="flex items-center justify-between p-3 rounded-xl border border-amber-200 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer select-none">
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={pruneVolumes}
-                onChange={(e) => setPruneVolumes(e.target.checked)}
-                className="w-4 h-4 rounded text-amber-600 border-zinc-300 dark:border-zinc-700 focus:ring-amber-500 cursor-pointer"
+                onCheckedChange={setPruneVolumes}
               />
               <div className="flex items-center gap-2">
                 <IconDatabase className="w-4 h-4 text-amber-500" />
