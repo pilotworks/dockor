@@ -23,6 +23,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { ContainerStatsData } from '../../types';
+import { getAuthToken } from '../../lib/api';
 import { useAppStore } from '../../stores/use-app-store';
 
 interface ContainerStatsModalProps {
@@ -114,7 +115,9 @@ export function ContainerStatsModal({
     const primaryHost = window.location.port === '5173'
       ? `${window.location.hostname}:9000`
       : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/stats`;
+    const token = getAuthToken();
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/stats${tokenParam}`;
 
     let hasOpened = false;
 
@@ -166,7 +169,7 @@ export function ContainerStatsModal({
           hasOpened = true;
           targetWs.close();
           const fallbackHost = window.location.host;
-          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/stats`;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/stats${tokenParam}`;
           console.log('[Stats WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);

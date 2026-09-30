@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { useAppStore } from '../../stores/use-app-store';
+import { getAuthToken } from '../../lib/api';
 
 interface ContainerLogsModalProps {
   containerId: string;
@@ -133,7 +134,9 @@ export function ContainerLogsModal({
     const primaryHost = window.location.port === '5173'
       ? `${window.location.hostname}:9000`
       : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+    const token = getAuthToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}${tokenParam}`;
 
     const textDecoder = new TextDecoder();
     let hasOpened = false;
@@ -177,7 +180,7 @@ export function ContainerLogsModal({
           hasOpened = true; // prevent infinite fallback loop
           targetWs.close();
           const fallbackHost = window.location.host;
-          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}${tokenParam}`;
           console.log('[Logs WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);

@@ -429,4 +429,44 @@ export interface DockerDaemonEvent {
   timestamp: number;
 }
 
+export type UserRole = 'admin' | 'developer' | 'viewer';
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: UserRole;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LoginPayload {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  user: User;
+}
+
+export interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+}
+
+export interface CreateUserPayload {
+  username: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}
+
+export interface UpdateUserPayload {
+  email?: string;
+  role?: UserRole;
+  password?: string;
+}
+
+
 

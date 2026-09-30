@@ -126,6 +126,7 @@ func main() {
 	// 5. Initialize HTTP API Handler and Router
 	handler := handlers.NewAPIHandler(repo, dockerSvc, templateEng, composeSvc)
 	handler.SetSecretKey(cfg.SecretKey)
+	handler.SetJWTSecret(cfg.JWTSecret)
 
 	// Start background Docker daemon event monitoring if connected
 	if dockerSvc != nil {

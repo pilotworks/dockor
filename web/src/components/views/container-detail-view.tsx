@@ -55,7 +55,7 @@ import {
 } from '../ui/dialog';
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
-import { api } from '../../lib/api';
+import { api, getAuthToken } from '../../lib/api';
 import { CommitContainerModal } from '../containers/commit-container-modal';
 import { useAppStore } from '../../stores/use-app-store';
 import { confirmDialog } from '../../stores/use-dialog-store';
@@ -1221,7 +1221,9 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const primaryHost = window.location.port === '5173' ? `${window.location.hostname}:9000` : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}`;
+    const token = getAuthToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/logs?follow=true&tail=${tail}${tokenParam}`;
 
     const textDecoder = new TextDecoder();
     const ws = new WebSocket(wsUrl);
@@ -1478,7 +1480,9 @@ function EmbeddedContainerTerminal({ containerId }: { containerId: string }) {
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const primaryHost = window.location.port === '5173' ? `${window.location.hostname}:9000` : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}`;
+    const token = getAuthToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
@@ -1586,7 +1590,9 @@ function EmbeddedContainerStats({ containerId }: { containerId: string }) {
   useEffect(() => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const primaryHost = window.location.port === '5173' ? `${window.location.hostname}:9000` : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/stats`;
+    const token = getAuthToken();
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/stats${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (event) => {

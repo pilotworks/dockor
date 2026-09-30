@@ -19,6 +19,7 @@ import {
   IconCircleFilled,
 } from '@tabler/icons-react';
 import { useAppStore } from '../../stores/use-app-store';
+import { getAuthToken } from '../../lib/api';
 
 interface ContainerTerminalModalProps {
   containerId: string;
@@ -127,7 +128,9 @@ export function ContainerTerminalModal({
     const primaryHost = window.location.port === '5173'
       ? `${window.location.hostname}:9000`
       : window.location.host;
-    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}`;
+    const token = getAuthToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${proto}//${primaryHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}${tokenParam}`;
 
     let hasOpened = false;
 
@@ -172,7 +175,7 @@ export function ContainerTerminalModal({
           hasOpened = true; // prevent infinite loop
           targetWs.close();
           const fallbackHost = window.location.host;
-          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}`;
+          const fallbackUrl = `ws://${fallbackHost}/api/v1/containers/${containerId}/exec?shell=${encodeURIComponent(shell)}${tokenParam}`;
           console.log('[Terminal WS] Retrying connection via fallback:', fallbackUrl);
           const fallbackWs = new WebSocket(fallbackUrl);
           setupWsHandlers(fallbackWs);

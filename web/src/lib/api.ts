@@ -1,6 +1,53 @@
-import { Template, Stack, Container, Node, ContainerDetail, ContainerPortBinding, ContainerNetworkInfo, ContainerMount } from '../types';
+import {
+  Template,
+  Stack,
+  Container,
+  Node,
+  ContainerDetail,
+  ContainerPortBinding,
+  ContainerNetworkInfo,
+  ContainerMount,
+  User,
+  LoginPayload,
+  LoginResponse,
+  ChangePasswordPayload,
+  CreateUserPayload,
+  UpdateUserPayload,
+} from '../types';
 
 const API_BASE = '/api/v1';
+const systemFetch = globalThis.fetch;
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem('dockor_token');
+  } catch {
+    return null;
+  }
+}
+
+export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const token = getAuthToken();
+  const headers = new Headers(init?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  const res = await systemFetch(url, { ...init, headers });
+  if (res.status === 401 && !url.includes('/auth/login')) {
+    try {
+      localStorage.removeItem('dockor_token');
+      localStorage.removeItem('dockor_user');
+    } catch {
+      // ignore
+    }
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }
+  return res;
+}
+
+const fetch = authFetch;
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -363,8 +410,11 @@ export const api = {
     fetch(`${API_BASE}/containers/${encodeURIComponent(id)}/files?path=${encodeURIComponent(path)}`, {
       method: 'DELETE',
     }).then(handleResponse<{ status: string; path: string }>),
-  getContainerFileDownloadUrl: (id: string, path: string) =>
-    `${API_BASE}/containers/${encodeURIComponent(id)}/files/download?path=${encodeURIComponent(path)}`,
+  getContainerFileDownloadUrl: (id: string, path: string) => {
+    const token = getAuthToken();
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE}/containers/${encodeURIComponent(id)}/files/download?path=${encodeURIComponent(path)}${tokenParam}`;
+  },
 
   // Registries
   getRegistries: () =>
@@ -391,5 +441,46 @@ export const api = {
   // Events
   getEventHistory: () =>
     fetch(`${API_BASE}/events/history`).then(handleResponse<import('../types').DockerDaemonEvent[]>),
-  getEventStreamUrl: () => `${API_BASE}/events`,
+  getEventStreamUrl: () => {
+    const token = getAuthToken();
+    return token ? `${API_BASE}/events?token=${encodeURIComponent(token)}` : `${API_BASE}/events`;
+  },
+
+  // Auth
+  login: (payload: LoginPayload) =>
+    fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<LoginResponse>),
+  getCurrentUser: () =>
+    fetch(`${API_BASE}/auth/me`).then(handleResponse<User>),
+  changePassword: (payload: ChangePasswordPayload) =>
+    fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<{ status: string; message: string }>),
+
+  // Users Management (Admin)
+  getUsers: () =>
+    fetch(`${API_BASE}/users`).then(handleResponse<User[]>),
+  getUser: (id: string) =>
+    fetch(`${API_BASE}/users/${encodeURIComponent(id)}`).then(handleResponse<User>),
+  createUser: (payload: CreateUserPayload) =>
+    fetch(`${API_BASE}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<User>),
+  updateUser: (id: string, payload: UpdateUserPayload) =>
+    fetch(`${API_BASE}/users/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<User>),
+  deleteUser: (id: string) =>
+    fetch(`${API_BASE}/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).then(handleResponse<{ status: string; message: string; id: string }>),
 };

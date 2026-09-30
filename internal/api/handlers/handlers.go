@@ -21,6 +21,7 @@ type APIHandler struct {
 	templateEng  *service.TemplateEngine
 	composeSvc   *service.ComposeService
 	secretKey    string
+	jwtSecret    string
 }
 
 func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService, templateEng *service.TemplateEngine, composeSvc *service.ComposeService) *APIHandler {
@@ -29,11 +30,26 @@ func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService
 		dockerSvc:   dockerSvc,
 		templateEng: templateEng,
 		composeSvc:  composeSvc,
+		jwtSecret:   "dockor-default-jwt-secret-dev",
 	}
 }
 
 func (h *APIHandler) SetSecretKey(key string) {
 	h.secretKey = key
+}
+
+func (h *APIHandler) SetJWTSecret(secret string) {
+	if secret != "" {
+		h.jwtSecret = secret
+	}
+}
+
+func (h *APIHandler) JWTSecret() string {
+	return h.jwtSecret
+}
+
+func (h *APIHandler) Repo() *repository.Repository {
+	return h.repo
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -57,43 +73,6 @@ func (h *APIHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 		"status":  "healthy",
 		"version": "0.1.0",
 		"docker":  dockerStatus,
-	})
-}
-
-// Auth Handlers
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func (h *APIHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-
-	// Simple MVP authentication: user admin / admin123
-	if req.Username == "admin" && req.Password == "admin123" {
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"access_token": "dockor_token_" + uuid.New().String(),
-			"user": map[string]interface{}{
-				"id":       "usr_admin",
-				"username": "admin",
-				"role":     "admin",
-			},
-		})
-		return
-	}
-
-	writeError(w, http.StatusUnauthorized, "Invalid credentials")
-}
-
-func (h *APIHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"id":       "usr_admin",
-		"username": "admin",
-		"role":     "admin",
 	})
 }
 

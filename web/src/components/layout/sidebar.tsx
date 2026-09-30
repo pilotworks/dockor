@@ -14,9 +14,11 @@ import {
   IconSun,
   IconMoon,
   IconServer2,
+  IconUsers,
 } from '@tabler/icons-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
+import { useAuthStore } from '../../stores/use-auth-store';
 import { useHealth, useNodes } from '../../hooks/use-nodes';
 import { useContainers } from '../../hooks/use-containers';
 import { useStacks } from '../../hooks/use-stacks';
@@ -31,6 +33,7 @@ import { DockorLogo } from '../brand/dockor-logo';
 
 export function Sidebar() {
   const { selectedNodeId, theme, toggleTheme } = useAppStore();
+  const currentUser = useAuthStore((state) => state.user);
   const location = useLocation();
   const { data: health } = useHealth();
   const { data: nodes = [] } = useNodes();
@@ -100,6 +103,15 @@ export function Sidebar() {
       icon: IconServer,
       badge: nodes.length > 1 ? `${nodes.length}` : undefined,
     },
+    ...(currentUser?.role === 'admin'
+      ? [
+          {
+            path: '/users',
+            label: 'Users & RBAC',
+            icon: IconUsers,
+          },
+        ]
+      : []),
   ];
 
   return (

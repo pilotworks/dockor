@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/pilotworks/dockor/internal/crypto"
 	"github.com/pilotworks/dockor/internal/models"
 )
 
@@ -20,7 +21,7 @@ func NewRepository(db *DB) *Repository {
 	return &Repository{db: db}
 }
 
-// EnsureDefaultAdmin creates an initial admin user if no users exist
+// EnsureDefaultAdmin creates an initial admin user if no users exist or upgrades plaintext hashes
 func (r *Repository) EnsureDefaultAdmin(ctx context.Context) error {
 	var count int
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
@@ -29,16 +30,31 @@ func (r *Repository) EnsureDefaultAdmin(ctx context.Context) error {
 	}
 	if count == 0 {
 		now := time.Now().UTC()
-		// In production this will be hashed with bcrypt; for initial scaffold we store a standard hash
+		hashed, err := crypto.HashPassword("admin123")
+		if err != nil {
+			return err
+		}
 		_, err = r.db.ExecContext(ctx, `
 			INSERT INTO users (id, username, email, password_hash, role, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			"usr_admin", "admin", "admin@dockor.local", "admin123", string(models.RoleAdmin), now, now,
+			"usr_admin", "admin", "admin@dockor.local", hashed, string(models.RoleAdmin), now, now,
 		)
 		if err != nil {
 			return err
 		}
+		return nil
 	}
+
+	// Upgrade legacy plaintext password if present
+	var id, passHash string
+	err = r.db.QueryRowContext(ctx, "SELECT id, password_hash FROM users WHERE username = 'admin'").Scan(&id, &passHash)
+	if err == nil && passHash == "admin123" {
+		hashed, err := crypto.HashPassword("admin123")
+		if err == nil {
+			_, _ = r.db.ExecContext(ctx, "UPDATE users SET password_hash = ? WHERE id = ?", hashed, id)
+		}
+	}
+
 	return nil
 }
 
@@ -330,3 +346,99 @@ func (r *Repository) DeleteRegistry(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM registries WHERE id = ?", id)
 	return err
 }
+
+// User Management Methods
+
+func (r *Repository) GetUserByID(ctx context.Context, id string) (*models.User, error) {
+	row := r.db.QueryRowContext(ctx, "SELECT id, username, email, password_hash, role, created_at, updated_at FROM users WHERE id = ?", id)
+	var u models.User
+	var role string
+	err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &role, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	u.Role = models.UserRole(role)
+	return &u, nil
+}
+
+func (r *Repository) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
+	row := r.db.QueryRowContext(ctx, "SELECT id, username, email, password_hash, role, created_at, updated_at FROM users WHERE username = ?", username)
+	var u models.User
+	var role string
+	err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &role, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	u.Role = models.UserRole(role)
+	return &u, nil
+}
+
+func (r *Repository) ListUsers(ctx context.Context) ([]models.User, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT id, username, email, password_hash, role, created_at, updated_at FROM users ORDER BY created_at ASC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		var role string
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		u.Role = models.UserRole(role)
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (r *Repository) CreateUser(ctx context.Context, user *models.User) error {
+	now := time.Now().UTC()
+	user.CreatedAt = now
+	user.UpdatedAt = now
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO users (id, username, email, password_hash, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		user.ID, user.Username, user.Email, user.PasswordHash, string(user.Role), user.CreatedAt, user.UpdatedAt,
+	)
+	return err
+}
+
+func (r *Repository) UpdateUser(ctx context.Context, user *models.User) error {
+	user.UpdatedAt = time.Now().UTC()
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET email = ?, role = ?, updated_at = ?
+		WHERE id = ?`,
+		user.Email, string(user.Role), user.UpdatedAt, user.ID,
+	)
+	return err
+}
+
+func (r *Repository) UpdateUserPassword(ctx context.Context, id, passwordHash string) error {
+	now := time.Now().UTC()
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_hash = ?, updated_at = ?
+		WHERE id = ?`,
+		passwordHash, now, id,
+	)
+	return err
+}
+
+func (r *Repository) DeleteUser(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE id = ?", id)
+	return err
+}
+
+func (r *Repository) CountUsers(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	return count, err
+}
+

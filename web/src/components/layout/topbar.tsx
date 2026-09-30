@@ -7,24 +7,41 @@ import {
   IconMoon,
   IconTrash,
   IconActivity,
+  IconKey,
+  IconLogout,
+  IconShield,
+  IconChevronDown,
 } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
 import { useCommandPaletteStore } from '../../stores/use-command-palette';
 import { useEventStore } from '../../stores/use-event-store';
+import { useAuthStore } from '../../stores/use-auth-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { SystemPruneModal } from '../system/system-prune-modal';
+import { ChangePasswordModal } from '../auth/change-password-modal';
 
 export function Topbar() {
   const { theme, toggleTheme } = useAppStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const { open: openPalette } = useCommandPaletteStore();
   const { toggleDrawer, unreadCount } = useEventStore();
   const queryClient = useQueryClient();
   const [isPruneOpen, setIsPruneOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleRefresh = async () => {
     await queryClient.invalidateQueries();
@@ -51,6 +68,14 @@ export function Topbar() {
     nodes: {
       title: 'Cluster Topology',
       subtitle: 'Connected Docker engines and remote agent endpoints',
+    },
+    registries: {
+      title: 'Container Registries',
+      subtitle: 'Encrypted Docker Hub, GHCR, and private registry credentials',
+    },
+    users: {
+      title: 'Users & Access Control',
+      subtitle: 'Operator accounts, security roles, and RBAC permissions',
     },
   };
 
@@ -200,10 +225,70 @@ export function Topbar() {
           <IconPlus className="w-3.5 h-3.5" />
           Deploy App
         </Button>
+
+        {/* User Session Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border border-border/70 hover:border-border hover:bg-muted/50 transition-colors focus:outline-none">
+              <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[11px]">
+                {user?.username ? user.username.substring(0, 2).toUpperCase() : 'OP'}
+              </div>
+              <span className="text-xs font-medium text-foreground max-w-[80px] truncate">
+                {user?.username || 'Operator'}
+              </span>
+              <Badge
+                variant="outline"
+                className={`text-[9px] px-1 py-0 h-3.5 border-0 font-semibold ${
+                  user?.role === 'admin'
+                    ? 'bg-indigo-500/15 text-indigo-400'
+                    : user?.role === 'viewer'
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'bg-blue-500/15 text-blue-400'
+                }`}
+              >
+                {user?.role || 'dev'}
+              </Badge>
+              <IconChevronDown className="w-3 h-3 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-xs font-semibold leading-none">{user?.username}</p>
+                <p className="text-[11px] leading-none text-muted-foreground truncate">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)} className="cursor-pointer">
+              <IconKey className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Change Password</span>
+            </DropdownMenuItem>
+            {user?.role === 'admin' && (
+              <DropdownMenuItem onClick={() => navigate('/users')} className="cursor-pointer">
+                <IconShield className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Manage Users</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              className="text-destructive focus:text-destructive cursor-pointer"
+            >
+              <IconLogout className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Global Docker System Prune Modal */}
       <SystemPruneModal isOpen={isPruneOpen} onClose={() => setIsPruneOpen(false)} />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
     </header>
   );
 }
