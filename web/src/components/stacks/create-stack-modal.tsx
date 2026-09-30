@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDeployStack } from '../../hooks/use-stacks';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import {
   Select,
@@ -294,16 +295,14 @@ export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModa
                 YAML Spec 3.8+
               </Badge>
             </div>
-            <div className="relative rounded-xl border border-zinc-200 dark:border-[#272730] bg-zinc-950 overflow-hidden shadow-inner">
-              <textarea
-                value={composeYaml}
-                onChange={(e) => setComposeYaml(e.target.value)}
-                rows={12}
-                className="w-full p-4 font-mono text-xs text-zinc-200 bg-transparent focus:outline-none resize-y leading-relaxed"
-                placeholder="version: '3.8'&#10;services:&#10;  ..."
-                required
-              />
-            </div>
+            <Textarea
+              value={composeYaml}
+              onChange={(e) => setComposeYaml(e.target.value)}
+              rows={12}
+              className="p-4 font-mono text-xs resize-y leading-relaxed"
+              placeholder="version: '3.8'&#10;services:&#10;  ..."
+              required
+            />
           </div>
 
           {/* Environment Variables */}

@@ -1280,12 +1280,12 @@ function EmbeddedContainerLogs({ containerId }: { containerId: string }) {
         <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-md">
           <div className="relative flex-1">
             <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
+            <Input
               type="text"
               placeholder={isRegex ? 'Regex filter (e.g. error|warn|fatal)...' : 'Search logs...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-8 pr-8 text-xs bg-white dark:bg-[#18181B] border border-zinc-200 dark:border-[#272730] rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-zinc-800 dark:text-zinc-200"
+              className="w-full h-8 pl-8 pr-8 text-xs font-mono"
             />
             <button
               type="button"

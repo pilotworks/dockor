@@ -21,7 +21,7 @@ export const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <IconChevronDown className="h-4 w-4 opacity-50 text-zinc-400" />
+      <IconChevronDown className="h-4 w-4 opacity-50 text-zinc-400 shrink-0 ml-2" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -76,7 +76,7 @@ export const SelectContent = React.forwardRef<
         className={cn(
           'p-1.5',
           position === 'popper' &&
-            'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]'
+            'w-full min-w-[var(--radix-select-trigger-width)]'
         )}
       >
         {children}

@@ -117,9 +117,28 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
       return checkboxBox;
     }
 
+    if (!description) {
+      return (
+        <div className="flex items-center gap-2.5">
+          {checkboxBox}
+          {label && (
+            <label
+              htmlFor={id}
+              className={cn(
+                'text-xs font-medium text-zinc-900 dark:text-zinc-100 select-none cursor-pointer leading-normal',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              {label}
+            </label>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-start gap-2.5">
-        <div className="pt-0.5">{checkboxBox}</div>
+        <div className="pt-0.5 shrink-0">{checkboxBox}</div>
         <div className="space-y-0.5 text-xs">
           {label && (
             <label
@@ -132,11 +151,9 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               {label}
             </label>
           )}
-          {description && (
-            <p className={cn('text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal', disabled && 'opacity-50')}>
-              {description}
-            </p>
-          )}
+          <p className={cn('text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal', disabled && 'opacity-50')}>
+            {description}
+          </p>
         </div>
       </div>
     );

@@ -91,7 +91,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
               <IconUserPlus className="w-5 h-5" />
             </div>
             <div>
@@ -105,13 +105,13 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {error && (
-            <div className="p-3 text-xs rounded-lg bg-destructive/10 border border-destructive/20 text-destructive font-medium">
+            <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-medium">
               {error}
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Username
             </label>
             <Input
@@ -126,7 +126,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Email Address
             </label>
             <Input
@@ -140,7 +140,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
               Initial Password
             </label>
             <div className="relative">
@@ -156,7 +156,7 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1"
               >
                 {showPassword ? <IconEyeOff className="w-4 h-4" /> : <IconEye className="w-4 h-4" />}
               </button>
@@ -164,31 +164,31 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <IconShield className="w-3.5 h-3.5 text-muted-foreground" />
+            <label className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+              <IconShield className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
               Assigned Role
             </label>
             <Select value={role} onValueChange={(val) => setRole(val as UserRole)} disabled={loading}>
-              <SelectTrigger className="w-full text-sm">
+              <SelectTrigger className="w-full h-auto min-h-12 py-2 px-3 text-sm [&>span]:line-clamp-none">
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="developer">
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium">Developer</span>
-                    <span className="text-xs text-muted-foreground">Manage containers, stacks, files, and images</span>
+                <SelectItem value="developer" className="py-2.5 my-0.5">
+                  <div className="flex flex-col text-left gap-0.5">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">Developer</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Manage containers, stacks, files, and images</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="admin">
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium">Admin</span>
-                    <span className="text-xs text-muted-foreground">Full system access, manage users, nodes, and registries</span>
+                <SelectItem value="admin" className="py-2.5 my-0.5">
+                  <div className="flex flex-col text-left gap-0.5">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">Admin</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Full system access, manage users, nodes, and registries</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="viewer">
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium">Viewer</span>
-                    <span className="text-xs text-muted-foreground">Read-only monitoring access across all resources</span>
+                <SelectItem value="viewer" className="py-2.5 my-0.5">
+                  <div className="flex flex-col text-left gap-0.5">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">Viewer</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Read-only monitoring access across all resources</span>
                   </div>
                 </SelectItem>
               </SelectContent>

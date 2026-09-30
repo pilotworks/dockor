@@ -7,6 +7,14 @@ import { confirmDialog } from '../../stores/use-dialog-store';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../ui/table';
 import { CreateUserModal } from '../users/create-user-modal';
 import { EditUserModal } from '../users/edit-user-modal';
 import {
@@ -129,144 +137,142 @@ export function UsersView() {
       {/* Role explanation cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="p-3.5 rounded-xl border border-indigo-500/20 bg-indigo-500/5 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-500 dark:text-indigo-400">
             <IconShieldCheck className="w-4 h-4" />
             Admin Role
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
             Full root privileges: manages users, cluster nodes, encrypted registries, and system prune.
           </p>
         </div>
         <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-400">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-500 dark:text-blue-400">
             <IconCode className="w-4 h-4" />
             Developer Role
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
             Operational access: deploy stacks, execute container exec shell, write files, manage images and volumes.
           </p>
         </div>
         <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-500 dark:text-amber-400">
             <IconEye className="w-4 h-4" />
             Viewer Role
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
             Read-only access: view dashboard, inspect container logs, stats, read files without modification permissions.
           </p>
         </div>
       </div>
 
       {/* Users Table */}
-      <Card className="border border-border/70 overflow-hidden">
+      <Card className="border border-zinc-200 dark:border-[#23232A] overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
+          <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Loading users...
           </div>
         ) : error ? (
-          <div className="p-8 text-center text-sm text-destructive font-medium">
+          <div className="p-8 text-center text-sm text-red-600 dark:text-red-400 font-medium">
             {(error as any)?.message || 'Failed to load users'}
           </div>
         ) : !users || users.length === 0 ? (
           <div className="p-12 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-muted/50 mx-auto flex items-center justify-center text-muted-foreground">
+            <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-500">
               <IconUsers className="w-6 h-6" />
             </div>
-            <p className="text-sm font-medium text-foreground">No users registered</p>
+            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">No users registered</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/40 border-b border-border/60 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Operator</th>
-                  <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">Created</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {users.map((u) => {
-                  const isSelf = u.id === currentUser?.id;
-                  const formattedDate = new Date(u.created_at).toLocaleDateString([], {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  });
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Operator</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => {
+                const isSelf = u.id === currentUser?.id;
+                const formattedDate = new Date(u.created_at).toLocaleDateString([], {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                });
 
-                  return (
-                    <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-semibold text-xs text-primary shrink-0">
-                            {u.username.substring(0, 2).toUpperCase()}
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-center font-semibold text-xs text-blue-600 dark:text-blue-400 shrink-0">
+                          {u.username.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                            {u.username}
+                            {isSelf && (
+                              <Badge variant="neutral" className="text-[10px] py-0 px-1.5 h-4">
+                                You
+                              </Badge>
+                            )}
                           </div>
-                          <div>
-                            <div className="font-semibold text-foreground flex items-center gap-1.5">
-                              {u.username}
-                              {isSelf && (
-                                <Badge variant="neutral" className="text-[10px] py-0 px-1.5 h-4">
-                                  You
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground font-mono">
-                              {u.id}
-                            </div>
+                          <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                            {u.id}
                           </div>
                         </div>
-                      </td>
+                      </div>
+                    </TableCell>
 
-                      <td className="py-3 px-4">
-                        {getRoleBadge(u.role)}
-                      </td>
+                    <TableCell>
+                      {getRoleBadge(u.role)}
+                    </TableCell>
 
-                      <td className="py-3 px-4 text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <IconMail className="w-3.5 h-3.5 text-muted-foreground/60" />
-                          <span>{u.email}</span>
-                        </div>
-                      </td>
+                    <TableCell className="text-zinc-600 dark:text-zinc-300">
+                      <div className="flex items-center gap-1.5">
+                        <IconMail className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{u.email}</span>
+                      </div>
+                    </TableCell>
 
-                      <td className="py-3 px-4 text-muted-foreground text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <IconCalendar className="w-3.5 h-3.5 text-muted-foreground/60" />
-                          <span>{formattedDate}</span>
-                        </div>
-                      </td>
+                    <TableCell className="text-zinc-500 dark:text-zinc-400 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <IconCalendar className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{formattedDate}</span>
+                      </div>
+                    </TableCell>
 
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingUser(u)}
-                            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            <IconPencil className="w-3.5 h-3.5 mr-1" />
-                            Edit
-                          </Button>
+                    <TableCell className="text-right">
+                      <div className="inline-flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingUser(u)}
+                          className="h-8 px-2 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                        >
+                          <IconPencil className="w-3.5 h-3.5 mr-1" />
+                          Edit
+                        </Button>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={isSelf}
-                            onClick={() => handleDeleteUser(u)}
-                            className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-30"
-                            title={isSelf ? 'Cannot delete your own account' : 'Delete user'}
-                          >
-                            <IconTrash className="w-3.5 h-3.5 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isSelf}
+                          onClick={() => handleDeleteUser(u)}
+                          className="h-8 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-30"
+                          title={isSelf ? 'Cannot delete your own account' : 'Delete user'}
+                        >
+                          <IconTrash className="w-3.5 h-3.5 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </Card>
 
