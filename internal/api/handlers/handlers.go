@@ -486,6 +486,23 @@ func (h *APIHandler) DeleteStack(w http.ResponseWriter, r *http.Request) {
 
 // Container Handlers
 func (h *APIHandler) ListContainers(w http.ResponseWriter, r *http.Request) {
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline or disconnected", nodeID))
+			return
+		}
+		res, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.list", nil)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "Failed to query remote node: "+err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(res)
+		return
+	}
+
 	if h.dockerSvc == nil {
 		writeJSON(w, http.StatusOK, []interface{}{})
 		return
@@ -531,6 +548,23 @@ func (h *APIHandler) CreateContainer(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) GetContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline", nodeID))
+			return
+		}
+		res, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.inspect", map[string]string{"id": id})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(res)
+		return
+	}
+
 	if h.dockerSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
 		return
@@ -545,6 +579,24 @@ func (h *APIHandler) GetContainer(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) StartContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline", nodeID))
+			return
+		}
+		if _, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.start", map[string]string{"id": id}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"message": "Container started on remote node"})
+		return
+	}
+
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
 	if err := h.dockerSvc.StartContainer(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -554,6 +606,24 @@ func (h *APIHandler) StartContainer(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) StopContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline", nodeID))
+			return
+		}
+		if _, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.stop", map[string]string{"id": id}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"message": "Container stopped on remote node"})
+		return
+	}
+
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
 	if err := h.dockerSvc.StopContainer(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -563,6 +633,24 @@ func (h *APIHandler) StopContainer(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) RestartContainer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline", nodeID))
+			return
+		}
+		if _, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.restart", map[string]string{"id": id}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"message": "Container restarted on remote node"})
+		return
+	}
+
+	if h.dockerSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
+		return
+	}
 	if err := h.dockerSvc.RestartContainer(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -571,12 +659,26 @@ func (h *APIHandler) RestartContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *APIHandler) DeleteContainer(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	force := r.URL.Query().Get("force") == "true"
+	nodeID := r.URL.Query().Get("node_id")
+	if nodeID != "" && nodeID != "node_local" {
+		if h.agentHub == nil || !h.agentHub.IsNodeConnected(nodeID) {
+			writeError(w, http.StatusBadGateway, fmt.Sprintf("Node %s is offline", nodeID))
+			return
+		}
+		if _, err := h.agentHub.SendRPC(r.Context(), nodeID, "container.remove", map[string]interface{}{"id": id, "force": force}); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"message": "Container deleted successfully", "status": "deleted"})
+		return
+	}
+
 	if h.dockerSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "Docker service not connected")
 		return
 	}
-	id := chi.URLParam(r, "id")
-	force := r.URL.Query().Get("force") == "true"
 	if err := h.dockerSvc.RemoveContainer(r.Context(), id, force); err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to remove container: "+err.Error())
 		return

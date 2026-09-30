@@ -35,8 +35,13 @@ import { toast } from 'sonner';
 import { ComposeEditor } from '../editor/compose-editor';
 import { CreateStackModal } from '../stacks/create-stack-modal';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { useAppStore } from '../../stores/use-app-store';
+import { useNodes } from '../../hooks/use-nodes';
 
 export function StacksView() {
+  const selectedNodeId = useAppStore((s) => s.selectedNodeId);
+  const { data: nodes = [] } = useNodes();
+  const activeNode = nodes.find((n) => n.id === selectedNodeId) || nodes.find((n) => n.is_local);
   const { data: stacks = [], isLoading } = useStacks();
   const { data: containers = [] } = useContainers();
   const deleteMutation = useDeleteStack();
@@ -153,6 +158,21 @@ export function StacksView() {
 
   return (
     <div className="space-y-4">
+      {/* Remote Node Indicator Banner */}
+      {selectedNodeId !== 'node_local' && activeNode && (
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-xs text-blue-900 dark:text-blue-300">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span>
+              Managing Compose stacks on remote host: <strong>{activeNode.name}</strong> ({activeNode.hostname || activeNode.ip_address})
+            </span>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400">
+            Remote Agent Mode
+          </Badge>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex items-center justify-between bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] rounded-xl p-4 transition-colors">
         <div>

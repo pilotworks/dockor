@@ -1,19 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useAppStore } from '../stores/use-app-store';
 
 export function useStacks() {
+  const selectedNodeId = useAppStore((s) => s.selectedNodeId);
+
   return useQuery({
-    queryKey: ['stacks'],
-    queryFn: () => api.getStacks(),
+    queryKey: ['stacks', selectedNodeId],
+    queryFn: () => api.getStacks(selectedNodeId),
   });
 }
 
 export function useDeployStack() {
   const queryClient = useQueryClient();
+  const selectedNodeId = useAppStore((s) => s.selectedNodeId);
 
   return useMutation({
-    mutationFn: (data: { name: string; template_id?: string; compose_yaml?: string; variables?: Record<string, any> }) =>
-      api.deployStack(data),
+    mutationFn: (data: { name: string; template_id?: string; compose_yaml?: string; variables?: Record<string, any>; node_id?: string }) =>
+      api.deployStack({ ...data, node_id: data.node_id || selectedNodeId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stacks'] });
       queryClient.invalidateQueries({ queryKey: ['containers'] });

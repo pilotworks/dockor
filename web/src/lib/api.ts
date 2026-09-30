@@ -200,9 +200,12 @@ export const api = {
     }).then(handleResponse<{ imported: number; message: string }>),
 
   // Stacks
-  getStacks: () => fetch(`${API_BASE}/stacks`).then(handleResponse<Stack[]>),
+  getStacks: (nodeId?: string) => {
+    const url = nodeId && nodeId !== 'node_local' ? `${API_BASE}/stacks?node_id=${encodeURIComponent(nodeId)}` : `${API_BASE}/stacks`;
+    return fetch(url).then(handleResponse<Stack[]>);
+  },
   getStack: (id: string) => fetch(`${API_BASE}/stacks/${id}`).then(handleResponse<Stack>),
-  deployStack: (data: { name: string; template_id?: string; compose_yaml?: string; variables?: Record<string, any> }) =>
+  deployStack: (data: { name: string; template_id?: string; compose_yaml?: string; variables?: Record<string, any>; node_id?: string }) =>
     fetch(`${API_BASE}/stacks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -227,19 +230,45 @@ export const api = {
     fetch(`${API_BASE}/stacks/${id}/webhook/token`, { method: 'POST' }).then(handleResponse<{ webhook_token: string; webhook_url: string }>),
 
   // Containers
-  getContainers: () => fetch(`${API_BASE}/containers?all=true`).then(handleResponse<Container[]>),
-  getContainer: (id: string) => fetch(`${API_BASE}/containers/${id}`).then(handleResponse<any>).then(normalizeContainerDetail),
+  getContainers: (nodeId?: string) => {
+    let url = `${API_BASE}/containers?all=true`;
+    if (nodeId && nodeId !== 'node_local') {
+      url += `&node_id=${encodeURIComponent(nodeId)}`;
+    }
+    return fetch(url).then(handleResponse<Container[]>);
+  },
+  getContainer: (id: string, nodeId?: string) => {
+    let url = `${API_BASE}/containers/${id}`;
+    if (nodeId && nodeId !== 'node_local') {
+      url += `?node_id=${encodeURIComponent(nodeId)}`;
+    }
+    return fetch(url).then(handleResponse<any>).then(normalizeContainerDetail);
+  },
   createContainer: (data: import('../types').CreateContainerPayload) =>
     fetch(`${API_BASE}/containers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(handleResponse<import('../types').CreateContainerResult>),
-  startContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/start`, { method: 'POST' }),
-  stopContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/stop`, { method: 'POST' }),
-  restartContainer: (id: string) => fetch(`${API_BASE}/containers/${id}/restart`, { method: 'POST' }),
-  deleteContainer: (id: string, force = false) =>
-    fetch(`${API_BASE}/containers/${id}?force=${force}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
+  startContainer: (id: string, nodeId?: string) => {
+    const q = nodeId && nodeId !== 'node_local' ? `?node_id=${encodeURIComponent(nodeId)}` : '';
+    return fetch(`${API_BASE}/containers/${id}/start${q}`, { method: 'POST' });
+  },
+  stopContainer: (id: string, nodeId?: string) => {
+    const q = nodeId && nodeId !== 'node_local' ? `?node_id=${encodeURIComponent(nodeId)}` : '';
+    return fetch(`${API_BASE}/containers/${id}/stop${q}`, { method: 'POST' });
+  },
+  restartContainer: (id: string, nodeId?: string) => {
+    const q = nodeId && nodeId !== 'node_local' ? `?node_id=${encodeURIComponent(nodeId)}` : '';
+    return fetch(`${API_BASE}/containers/${id}/restart${q}`, { method: 'POST' });
+  },
+  deleteContainer: (id: string, force = false, nodeId?: string) => {
+    let url = `${API_BASE}/containers/${id}?force=${force}`;
+    if (nodeId && nodeId !== 'node_local') {
+      url += `&node_id=${encodeURIComponent(nodeId)}`;
+    }
+    return fetch(url, { method: 'DELETE' }).then(handleResponse<{ message: string }>);
+  },
   commitContainer: (id: string, data: { repo: string; tag?: string; comment?: string; author?: string; pause?: boolean }) =>
     fetch(`${API_BASE}/containers/${id}/commit`, {
       method: 'POST',

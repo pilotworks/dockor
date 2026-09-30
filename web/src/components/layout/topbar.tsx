@@ -11,12 +11,14 @@ import {
   IconLogout,
   IconShield,
   IconChevronDown,
+  IconServer,
 } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
 import { useCommandPaletteStore } from '../../stores/use-command-palette';
 import { useEventStore } from '../../stores/use-event-store';
 import { useAuthStore } from '../../stores/use-auth-store';
+import { useNodes } from '../../hooks/use-nodes';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -33,8 +35,10 @@ import { SystemPruneModal } from '../system/system-prune-modal';
 import { ChangePasswordModal } from '../auth/change-password-modal';
 
 export function Topbar() {
-  const { theme, toggleTheme } = useAppStore();
+  const { theme, toggleTheme, selectedNodeId, setSelectedNodeId } = useAppStore();
   const { user, logout } = useAuthStore();
+  const { data: nodes = [] } = useNodes();
+  const activeNode = nodes.find((n) => n.id === selectedNodeId) || nodes.find((n) => n.is_local) || nodes[0];
   const location = useLocation();
   const navigate = useNavigate();
   const { open: openPalette } = useCommandPaletteStore();
@@ -145,6 +149,81 @@ export function Topbar() {
 
       {/* Global Actions */}
       <div className="flex items-center gap-2.5">
+        {/* Cluster Node Switcher */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2 text-xs border border-zinc-200 dark:border-[#272730] px-2.5 max-w-[200px]"
+              title="Switch Active Docker Host"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    activeNode?.status === 'online'
+                      ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+                      : 'bg-red-500'
+                  }`}
+                />
+                <IconServer className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span className="truncate font-medium text-zinc-800 dark:text-zinc-200">
+                  {activeNode ? activeNode.name : 'Local Engine'}
+                </span>
+              </div>
+              <IconChevronDown className="w-3 h-3 text-zinc-400 shrink-0 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-zinc-400">
+              Cluster Node Topology
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {nodes.map((n) => {
+              const isSelected = n.id === activeNode?.id;
+              const isOnline = n.status === 'online';
+              return (
+                <DropdownMenuItem
+                  key={n.id}
+                  onClick={() => {
+                    setSelectedNodeId(n.id);
+                    toast.info(`Switched active host to: ${n.name}`);
+                  }}
+                  className={`flex items-center justify-between text-xs py-2 cursor-pointer ${
+                    isSelected ? 'bg-blue-50 dark:bg-blue-950/30 font-semibold text-blue-600 dark:text-blue-400' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                      }`}
+                    />
+                    <div className="truncate text-left">
+                      <div className="truncate">{n.name}</div>
+                      <div className="text-[10px] text-zinc-400 font-mono">
+                        {n.hostname || '127.0.0.1'} {n.is_local ? '• Local' : '• Remote Agent'}
+                      </div>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400">
+                      Active
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => navigate('/nodes')}
+              className="text-xs text-blue-600 dark:text-blue-400 cursor-pointer justify-center"
+            >
+              Manage Nodes & Enrollment
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Global Quick Filter / Search - triggers Command Palette */}
         <div
           onClick={openPalette}

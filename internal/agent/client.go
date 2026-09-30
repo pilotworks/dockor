@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/moby/moby/client"
 	"github.com/pilotworks/dockor/internal/docker"
+	"github.com/pilotworks/dockor/internal/models"
 	"github.com/pilotworks/dockor/internal/version"
 )
 
@@ -432,7 +433,38 @@ func (c *AgentClient) executeRPC(ctx context.Context, req *RPCRequest) (interfac
 		if err != nil {
 			return nil, &RPCError{Code: -32000, Message: err.Error()}
 		}
-		return containers.Items, nil
+		var list []models.ContainerSummary
+		for _, item := range containers.Items {
+			var ports []models.ContainerPort
+			for _, p := range item.Ports {
+				ports = append(ports, models.ContainerPort{
+					IP:          p.IP.String(),
+					PrivatePort: p.PrivatePort,
+					PublicPort:  p.PublicPort,
+					Type:        p.Type,
+				})
+			}
+			stackName := ""
+			if item.Labels != nil {
+				stackName = item.Labels["com.docker.compose.project"]
+			}
+			list = append(list, models.ContainerSummary{
+				ID:        item.ID,
+				Names:     item.Names,
+				Image:     item.Image,
+				ImageID:   item.ImageID,
+				Command:   item.Command,
+				Created:   item.Created,
+				State:     string(item.State),
+				Status:    item.Status,
+				Ports:     ports,
+				StackName: stackName,
+			})
+		}
+		if list == nil {
+			list = []models.ContainerSummary{}
+		}
+		return list, nil
 
 	case "container.start":
 		var p struct {
