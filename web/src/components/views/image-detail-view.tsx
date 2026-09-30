@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useImage, useImages, useDeleteImage } from '../../hooks/use-images';
 import {
   IconArrowLeft,
-  IconPhoto,
+  IconDisc,
   IconTrash,
   IconCopy,
   IconCheck,
@@ -155,7 +155,7 @@ export function ImageDetailView() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">
-              <IconPhoto className="w-6 h-6" />
+              <IconDisc className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">

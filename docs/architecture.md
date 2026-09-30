@@ -2,7 +2,7 @@
 
 ## 1. Overview & Philosophy
 
-**Dockor** is a modern, lightweight, single-binary container and application template management platform. Designed as a next-generation alternative to Portainer, Dockor emphasizes:
+**Dockor** is a modern, lightweight, single-binary container and application template management platform. Designed for production workloads, homelabs, and edge deployments, Dockor emphasizes:
 
 - **Template-First Ergonomics**: Composable, versioned application stacks with dynamic input forms, secret generation, and automatic port conflict resolution.
 - **Minimal Footprint & Zero Dependencies**: Built with Go and embedded pure-Go SQLite; no external databases (Postgres/Redis) required for single-node deployments.

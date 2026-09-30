@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useImages, useDeleteImage, usePruneImages } from '../../hooks/use-images';
 import {
-  IconPhoto,
+  IconDisc,
   IconDownload,
   IconSearch,
   IconTrash,
@@ -135,7 +135,7 @@ export function ImagesView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] rounded-xl p-4 transition-colors">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <IconPhoto className="w-4 h-4 text-purple-500" />
+            <IconDisc className="w-4 h-4 text-purple-500" />
             <span>Container Images</span>
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -306,7 +306,7 @@ export function ImagesView() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center">
-                    <IconPhoto className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                    <IconDisc className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
                     <p className="text-zinc-500 font-medium">No images found</p>
                     <p className="text-zinc-400 text-[11px] mt-0.5">
                       {search ? 'Try adjusting your search criteria' : 'Pull a new image to get started'}

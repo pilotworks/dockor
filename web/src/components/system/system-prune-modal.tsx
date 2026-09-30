@@ -6,7 +6,7 @@ import {
   IconTrash,
   IconX,
   IconBox,
-  IconPhoto,
+  IconDisc,
   IconDatabase,
   IconNetwork,
   IconCpu,
@@ -144,7 +144,7 @@ export function SystemPruneModal({ isOpen, onClose }: SystemPruneModalProps) {
                 className="w-4 h-4 rounded text-blue-600 border-zinc-300 dark:border-zinc-700 focus:ring-blue-500 cursor-pointer"
               />
               <div className="flex items-center gap-2">
-                <IconPhoto className="w-4 h-4 text-purple-500" />
+                <IconDisc className="w-4 h-4 text-purple-500" />
                 <div>
                   <div className="text-xs font-medium">Dangling & Unused Images</div>
                   <div className="text-[11px] text-zinc-500">Remove untagged layer blobs & unused manifests</div>

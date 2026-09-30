@@ -13,7 +13,7 @@ import { Button } from '../ui/button';
 import {
   IconBox,
   IconStack2,
-  IconPhoto,
+  IconDisc,
   IconDatabase,
   IconNetwork,
   IconServer,
@@ -125,7 +125,7 @@ export function DashboardView() {
             onClick={() => setIsPullImageOpen(true)}
             className="gap-1.5 text-xs cursor-pointer"
           >
-            <IconPhoto className="w-3.5 h-3.5 text-purple-500" />
+            <IconDisc className="w-3.5 h-3.5 text-purple-500" />
             Pull Image
           </Button>
 
@@ -200,7 +200,7 @@ export function DashboardView() {
           <Card className="p-4 bg-white dark:bg-[#121216] border-zinc-200 dark:border-[#23232A] hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold uppercase text-zinc-500">Images</span>
-              <IconPhoto className="w-4 h-4 text-purple-500" />
+              <IconDisc className="w-4 h-4 text-purple-500" />
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold font-mono text-zinc-900 dark:text-zinc-100">

@@ -5,7 +5,7 @@ import {
   IconBox,
   IconNetwork,
   IconDatabase,
-  IconPhoto,
+  IconDisc,
   IconServer,
   IconCpu,
   IconExternalLink,
@@ -82,7 +82,7 @@ export function Sidebar() {
     {
       path: '/images',
       label: 'Images',
-      icon: IconPhoto,
+      icon: IconDisc,
       badge: images.length > 0 ? `${images.length}` : undefined,
     },
     {

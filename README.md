@@ -4,7 +4,7 @@
 
 **Modern, lightweight container and dynamic application template management platform.**
 
-*A high-performance alternative to Portainer with first-class template ergonomics, automatic port collision resolution, and zero database dependencies.*
+*A high-performance, single-binary container and application stack manager with first-class template ergonomics, automatic port collision resolution, and zero external database dependencies.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)](https://react.dev)
@@ -17,7 +17,7 @@
 ## Key Differentiators
 
 - **Dynamic Template Engine**: Deploy multi-container stacks with auto-generated passwords (`random_string`, `uuid`), port collision scanning, and schema-driven input forms.
-- **Portainer v2 Compatibility**: Direct ingestion adapter for existing Portainer `templates-2.0.json` catalogs.
+- **Universal Template Compatibility**: Direct ingestion adapter for standard community `templates-2.0.json` catalogs.
 - **Zero-Dependency Core**: Single Go binary powered by pure-Go embedded SQLite (`modernc.org/sqlite` in WAL mode) — no PostgreSQL or Redis required.
 - **Modern Operator Interface**: High-density dark-mode UI built with React 19, Radix UI primitives, Tailwind CSS, and Monaco Editor.
 - **Outbound Reverse-Tunnel Agent**: Manage remote Docker hosts behind NAT and firewalls using the lightweight Go daemon (`dockor-agent`) without exposing Docker sockets.

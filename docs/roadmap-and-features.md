@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Value Proposition
 
-**Dockor** is designed to fill a major gap in the container management ecosystem: providing the simplicity and powerful template cataloging of modern homelab dashboards (like CasaOS or Umbrel), combined with the technical depth, Compose compatibility, and multi-node power of tools like Portainer.
+**Dockor** is designed to fill a major gap in the container management ecosystem: providing the simplicity and powerful template cataloging of modern application stores, combined with the technical depth, Compose compatibility, and multi-node power expected by DevOps teams and power users.
 
 By building on **Go** and an unopinionated **React + Radix UI** frontend, Dockor delivers near-instant page loads, zero runtime dependencies, low memory utilization, and a native developer experience.
 
