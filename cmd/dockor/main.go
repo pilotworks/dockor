@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pilotworks/dockor/internal/agent"
 	"github.com/pilotworks/dockor/internal/api"
 	"github.com/pilotworks/dockor/internal/api/handlers"
 	"github.com/pilotworks/dockor/internal/config"
@@ -123,8 +124,13 @@ func main() {
 	// 4. Initialize Compose Service
 	composeSvc := service.NewComposeService(cfg.DockerHost, cfg.DataDir)
 
-	// 5. Initialize HTTP API Handler and Router
+	// 5. Initialize Remote Node Agent Hub & Liveness Monitor
+	agentHub := agent.NewAgentHub(repo)
+	agentHub.StartLivenessChecker(ctx)
+
+	// 6. Initialize HTTP API Handler and Router
 	handler := handlers.NewAPIHandler(repo, dockerSvc, templateEng, composeSvc)
+	handler.SetAgentHub(agentHub)
 	handler.SetSecretKey(cfg.SecretKey)
 	handler.SetJWTSecret(cfg.JWTSecret)
 

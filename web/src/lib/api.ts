@@ -253,6 +253,10 @@ export const api = {
     fetch(`${API_BASE}/nodes/enrollment-token`, { method: 'POST' }).then(
       handleResponse<{ token: string; server_url: string; docker_command: string; install_command: string }>
     ),
+  pingNode: (id: string) =>
+    fetch(`${API_BASE}/nodes/${id}/ping`, { method: 'POST' }).then(
+      handleResponse<{ pong: boolean; node_id: string; is_local: boolean; latency_ms: number; details?: any }>
+    ),
   deleteNode: (id: string) =>
     fetch(`${API_BASE}/nodes/${id}`, { method: 'DELETE' }).then(handleResponse<{ status: string }>),
 

@@ -8,6 +8,9 @@ import {
   IconPlus,
   IconTrash,
   IconRefresh,
+  IconActivity,
+  IconBox,
+  IconDeviceDesktopAnalytics,
 } from '@tabler/icons-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -20,6 +23,8 @@ import { EnrollNodeModal } from '../nodes/enroll-node-modal';
 export function NodesView() {
   const { data: nodes = [], isLoading, refetch, isFetching } = useNodes();
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
+  const [pingingId, setPingingId] = useState<string | null>(null);
+  const [latencies, setLatencies] = useState<Record<string, number>>({});
 
   const handleDeleteNode = async (id: string, name: string) => {
     const confirmed = await confirmDialog({
@@ -36,6 +41,19 @@ export function NodesView() {
       refetch();
     } catch (err: any) {
       toast.error('Failed to remove node: ' + err.message);
+    }
+  };
+
+  const handlePingNode = async (id: string, name: string) => {
+    setPingingId(id);
+    try {
+      const res = await api.pingNode(id);
+      setLatencies((prev) => ({ ...prev, [id]: res.latency_ms }));
+      toast.success(`Ping to ${name} successful: ${res.latency_ms} ms`);
+    } catch (err: any) {
+      toast.error(`Ping failed for ${name}: ` + err.message);
+    } finally {
+      setPingingId(null);
     }
   };
 
@@ -86,6 +104,8 @@ export function NodesView() {
           {nodes.map((node) => {
             const isOnline = node.status === 'online';
             const memGB = node.total_memory ? (node.total_memory / (1024 * 1024 * 1024)).toFixed(1) : null;
+            const latency = latencies[node.id];
+            const isPinging = pingingId === node.id;
 
             return (
               <Card
@@ -107,24 +127,42 @@ export function NodesView() {
                         >
                           {node.status}
                         </Badge>
+                        {latency !== undefined && (
+                          <Badge variant="outline" className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                            {latency} ms
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
-                        {node.hostname} • {node.ip_address}
+                        {node.hostname || 'localhost'} • {node.ip_address}
                       </p>
                     </div>
                   </div>
 
-                  {!node.is_local && (
+                  <div className="flex items-center gap-1">
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      onClick={() => handleDeleteNode(node.id, node.name)}
-                      className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                      title="Remove Node"
+                      onClick={() => handlePingNode(node.id, node.name)}
+                      disabled={isPinging || !isOnline}
+                      className="text-zinc-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                      title="Test Connection Latency"
                     >
-                      <IconTrash className="w-3.5 h-3.5" />
+                      <IconActivity className={`w-3.5 h-3.5 ${isPinging ? 'animate-pulse text-blue-500' : ''}`} />
                     </Button>
-                  )}
+
+                    {!node.is_local && (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteNode(node.id, node.name)}
+                        className="text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        title="Remove Node"
+                      >
+                        <IconTrash className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4 pt-3.5 border-t border-zinc-100 dark:border-[#1C1C22] text-xs">
@@ -150,6 +188,35 @@ export function NodesView() {
                     </div>
                   </div>
                 </div>
+
+                {/* Telemetry info for remote agents or running containers */}
+                {(node.containers_total !== undefined && node.containers_total > 0 || node.agent_version || node.os) && (
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                    <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#202026] rounded-lg p-2.5">
+                      <span className="text-[10px] uppercase font-semibold text-zinc-400 dark:text-zinc-500 block mb-0.5">
+                        Containers
+                      </span>
+                      <div className="flex items-center gap-1.5 font-mono text-zinc-800 dark:text-zinc-300 text-[11px]">
+                        <IconBox className="w-3.5 h-3.5 text-blue-500" />
+                        <span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">{node.containers_running || 0}</strong> / {node.containers_total || 0} active
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-50 dark:bg-[#09090B] border border-zinc-200 dark:border-[#202026] rounded-lg p-2.5">
+                      <span className="text-[10px] uppercase font-semibold text-zinc-400 dark:text-zinc-500 block mb-0.5">
+                        Platform & Agent
+                      </span>
+                      <div className="flex items-center gap-1.5 font-mono text-zinc-800 dark:text-zinc-300 text-[11px] truncate">
+                        <IconDeviceDesktopAnalytics className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <span className="truncate">
+                          {node.os ? `${node.os}/${node.arch}` : 'Docker Host'} {node.agent_version ? `• v${node.agent_version}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-100 dark:border-[#1C1C22]">
                   <span className="flex items-center gap-1.5 font-mono">

@@ -31,18 +31,25 @@ const (
 )
 
 type Node struct {
-	ID            string     `json:"id"`
-	Name          string     `json:"name"`
-	Hostname      string     `json:"hostname"`
-	IPAddress     string     `json:"ip_address"`
-	DockerVersion string     `json:"docker_version"`
-	Status        NodeStatus `json:"status"`
-	IsLocal       bool       `json:"is_local"`
-	CPUCores      int        `json:"cpu_cores"`
-	TotalMemory   int64      `json:"total_memory"`
-	Endpoint      string     `json:"endpoint,omitempty"`
-	LastSeenAt    time.Time  `json:"last_seen_at"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	Hostname          string     `json:"hostname"`
+	IPAddress         string     `json:"ip_address"`
+	DockerVersion     string     `json:"docker_version"`
+	Status            NodeStatus `json:"status"`
+	IsLocal           bool       `json:"is_local"`
+	CPUCores          int        `json:"cpu_cores"`
+	TotalMemory       int64      `json:"total_memory"`
+	Endpoint          string     `json:"endpoint,omitempty"`
+	AgentVersion      string     `json:"agent_version,omitempty"`
+	OS                string     `json:"os,omitempty"`
+	Arch              string     `json:"arch,omitempty"`
+	ContainersRunning int        `json:"containers_running,omitempty"`
+	ContainersTotal   int        `json:"containers_total,omitempty"`
+	CPUUsagePercent   float64    `json:"cpu_usage_percent,omitempty"`
+	MemoryUsageBytes  int64      `json:"memory_usage_bytes,omitempty"`
+	LastSeenAt        time.Time  `json:"last_seen_at"`
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 type StackStatus string

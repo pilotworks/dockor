@@ -95,6 +95,13 @@ export interface Node {
   cpu_cores: number;
   total_memory?: number;
   endpoint?: string;
+  agent_version?: string;
+  os?: string;
+  arch?: string;
+  containers_running?: number;
+  containers_total?: number;
+  cpu_usage_percent?: number;
+  memory_usage_bytes?: number;
   last_seen_at: string;
 }
 

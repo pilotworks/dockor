@@ -11,18 +11,20 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/network"
+	"github.com/pilotworks/dockor/internal/agent"
 	"github.com/pilotworks/dockor/internal/models"
 	"github.com/pilotworks/dockor/internal/repository"
 	"github.com/pilotworks/dockor/internal/service"
 )
 
 type APIHandler struct {
-	repo         *repository.Repository
-	dockerSvc    *service.DockerService
-	templateEng  *service.TemplateEngine
-	composeSvc   *service.ComposeService
-	secretKey    string
-	jwtSecret    string
+	repo        *repository.Repository
+	dockerSvc   *service.DockerService
+	templateEng *service.TemplateEngine
+	composeSvc  *service.ComposeService
+	agentHub    *agent.AgentHub
+	secretKey   string
+	jwtSecret   string
 }
 
 func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService, templateEng *service.TemplateEngine, composeSvc *service.ComposeService) *APIHandler {
@@ -33,6 +35,14 @@ func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService
 		composeSvc:  composeSvc,
 		jwtSecret:   "dockor-default-jwt-secret-dev",
 	}
+}
+
+func (h *APIHandler) SetAgentHub(agentHub *agent.AgentHub) {
+	h.agentHub = agentHub
+}
+
+func (h *APIHandler) AgentHub() *agent.AgentHub {
+	return h.agentHub
 }
 
 func (h *APIHandler) SetSecretKey(key string) {
@@ -811,31 +821,7 @@ func (h *APIHandler) RegenerateStackWebhookToken(w http.ResponseWriter, r *http.
 	})
 }
 
-// Node Enrollment & Delete Handlers
-func (h *APIHandler) GenerateNodeEnrollment(w http.ResponseWriter, r *http.Request) {
-	token := strings.ReplaceAll(uuid.New().String(), "-", "")
-	host := r.Host
-	if host == "" {
-		host = "localhost:9000"
-	}
-	wsProto := "ws"
-	httpProto := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		wsProto = "wss"
-		httpProto = "https"
-	}
-
-	serverURL := fmt.Sprintf("%s://%s", wsProto, host)
-	dockerCmd := fmt.Sprintf("docker run -d --name dockor-agent --restart unless-stopped -v /var/run/docker.sock:/var/run/docker.sock pilotworks/dockor-agent:latest --server %s --token %s", serverURL, token)
-	installCmd := fmt.Sprintf("curl -fsSL %s://%s/agent.sh | sh -s -- --token %s --server %s", httpProto, host, token, serverURL)
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"token":           token,
-		"server_url":      serverURL,
-		"docker_command":  dockerCmd,
-		"install_command": installCmd,
-	})
-}
+// Node Delete Handler
 
 func (h *APIHandler) DeleteNode(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

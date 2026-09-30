@@ -82,7 +82,15 @@ func (r *Repository) UpsertLocalNode(ctx context.Context, n *models.Node) error 
 
 // Nodes
 func (r *Repository) ListNodes(ctx context.Context) ([]models.Node, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, name, hostname, ip_address, docker_version, status, is_local, cpu_cores, total_memory, COALESCE(endpoint, ''), last_seen_at, created_at FROM nodes ORDER BY is_local DESC, name ASC")
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			id, name, hostname, ip_address, docker_version, status, is_local,
+			cpu_cores, total_memory, COALESCE(endpoint, ''),
+			COALESCE(agent_version, ''), COALESCE(os, ''), COALESCE(arch, ''),
+			COALESCE(containers_running, 0), COALESCE(containers_total, 0),
+			COALESCE(cpu_usage_percent, 0.0), COALESCE(memory_usage_bytes, 0),
+			last_seen_at, created_at
+		FROM nodes ORDER BY is_local DESC, name ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,14 @@ func (r *Repository) ListNodes(ctx context.Context) ([]models.Node, error) {
 	for rows.Next() {
 		var n models.Node
 		var isLocal int
-		err := rows.Scan(&n.ID, &n.Name, &n.Hostname, &n.IPAddress, &n.DockerVersion, &n.Status, &isLocal, &n.CPUCores, &n.TotalMemory, &n.Endpoint, &n.LastSeenAt, &n.CreatedAt)
+		err := rows.Scan(
+			&n.ID, &n.Name, &n.Hostname, &n.IPAddress, &n.DockerVersion, &n.Status, &isLocal,
+			&n.CPUCores, &n.TotalMemory, &n.Endpoint,
+			&n.AgentVersion, &n.OS, &n.Arch,
+			&n.ContainersRunning, &n.ContainersTotal,
+			&n.CPUUsagePercent, &n.MemoryUsageBytes,
+			&n.LastSeenAt, &n.CreatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -100,6 +115,128 @@ func (r *Repository) ListNodes(ctx context.Context) ([]models.Node, error) {
 		nodes = append(nodes, n)
 	}
 	return nodes, rows.Err()
+}
+
+// UpsertRemoteNode registers or updates a remote node connected via dockor-agent
+func (r *Repository) UpsertRemoteNode(ctx context.Context, n *models.Node) error {
+	now := time.Now().UTC()
+	var count int
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes WHERE id = ?", n.ID).Scan(&count)
+	if count == 0 {
+		_, err := r.db.ExecContext(ctx, `
+			INSERT INTO nodes (
+				id, name, hostname, ip_address, docker_version, status, is_local,
+				cpu_cores, total_memory, endpoint, agent_version, os, arch,
+				containers_running, containers_total, cpu_usage_percent, memory_usage_bytes,
+				last_seen_at, created_at
+			)
+			VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			n.ID, n.Name, n.Hostname, n.IPAddress, n.DockerVersion, string(n.Status),
+			n.CPUCores, n.TotalMemory, n.Endpoint, n.AgentVersion, n.OS, n.Arch,
+			n.ContainersRunning, n.ContainersTotal, n.CPUUsagePercent, n.MemoryUsageBytes,
+			now, now,
+		)
+		return err
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE nodes SET
+			name = ?, hostname = ?, ip_address = ?, docker_version = ?, status = ?,
+			cpu_cores = ?, total_memory = ?, endpoint = ?, agent_version = ?, os = ?, arch = ?,
+			last_seen_at = ?
+		WHERE id = ?`,
+		n.Name, n.Hostname, n.IPAddress, n.DockerVersion, string(n.Status),
+		n.CPUCores, n.TotalMemory, n.Endpoint, n.AgentVersion, n.OS, n.Arch,
+		now, n.ID,
+	)
+	return err
+}
+
+func (r *Repository) GetNode(ctx context.Context, id string) (*models.Node, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT
+			id, name, hostname, ip_address, docker_version, status, is_local,
+			cpu_cores, total_memory, COALESCE(endpoint, ''),
+			COALESCE(agent_version, ''), COALESCE(os, ''), COALESCE(arch, ''),
+			COALESCE(containers_running, 0), COALESCE(containers_total, 0),
+			COALESCE(cpu_usage_percent, 0.0), COALESCE(memory_usage_bytes, 0),
+			last_seen_at, created_at
+		FROM nodes WHERE id = ?`, id)
+
+	var n models.Node
+	var isLocal int
+	err := row.Scan(
+		&n.ID, &n.Name, &n.Hostname, &n.IPAddress, &n.DockerVersion, &n.Status, &isLocal,
+		&n.CPUCores, &n.TotalMemory, &n.Endpoint,
+		&n.AgentVersion, &n.OS, &n.Arch,
+		&n.ContainersRunning, &n.ContainersTotal,
+		&n.CPUUsagePercent, &n.MemoryUsageBytes,
+		&n.LastSeenAt, &n.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("node not found")
+		}
+		return nil, err
+	}
+	n.IsLocal = isLocal == 1
+	return &n, nil
+}
+
+func (r *Repository) UpdateNodeStatus(ctx context.Context, id string, status models.NodeStatus) error {
+	now := time.Now().UTC()
+	_, err := r.db.ExecContext(ctx, "UPDATE nodes SET status = ?, last_seen_at = ? WHERE id = ?", string(status), now, id)
+	return err
+}
+
+func (r *Repository) UpdateNodeTelemetry(ctx context.Context, id string, cpuPercent float64, memUsed int64, running int, total int, dockerVer string) error {
+	now := time.Now().UTC()
+	query := `
+		UPDATE nodes SET
+			status = 'online',
+			cpu_usage_percent = ?,
+			memory_usage_bytes = ?,
+			containers_running = ?,
+			containers_total = ?,
+			docker_version = CASE WHEN ? != '' THEN ? ELSE docker_version END,
+			last_seen_at = ?
+		WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, cpuPercent, memUsed, running, total, dockerVer, dockerVer, now, id)
+	return err
+}
+
+func (r *Repository) MarkDisconnectedNodes(ctx context.Context, timeout time.Duration) (int64, error) {
+	threshold := time.Now().UTC().Add(-timeout)
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE nodes
+		SET status = 'disconnected'
+		WHERE is_local = 0 AND status != 'disconnected' AND last_seen_at < ?`, threshold)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// Enrollment Tokens
+func (r *Repository) CreateEnrollmentToken(ctx context.Context, token string, ttl time.Duration) error {
+	now := time.Now().UTC()
+	expiresAt := now.Add(ttl)
+	_, err := r.db.ExecContext(ctx, "INSERT INTO agent_enrollment_tokens (token, created_at, expires_at) VALUES (?, ?, ?)", token, now, expiresAt)
+	return err
+}
+
+func (r *Repository) ValidateAndConsumeEnrollmentToken(ctx context.Context, token string) (bool, error) {
+	now := time.Now().UTC()
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM agent_enrollment_tokens WHERE token = ? AND expires_at > ? AND used_at IS NULL", token, now).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	if count == 0 {
+		return false, nil
+	}
+	_, _ = r.db.ExecContext(ctx, "UPDATE agent_enrollment_tokens SET used_at = ? WHERE token = ?", now, token)
+	return true, nil
 }
 
 func generateToken() string {

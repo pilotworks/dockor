@@ -37,11 +37,18 @@ func NewRouter(h *handlers.APIHandler, webDir ...string) http.Handler {
 	adminOnly := RequireRole(models.RoleAdmin)
 	devOrAdmin := RequireRole(models.RoleAdmin, models.RoleDeveloper)
 
+	// Public Agent Bootstrap Script
+	r.Get("/agent.sh", h.ServeAgentInstallScript)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", h.HealthCheck)
 
 		// Public Auth
 		r.Post("/auth/login", h.Login)
+
+		// Public Agent Handshake & Tunnel
+		r.Post("/agent/handshake", h.AgentHandshake)
+		r.Get("/agent/tunnel", h.AgentTunnel)
 
 		// Public Stack Webhook (redeployment triggered by external CI/CD via token)
 		r.Post("/stacks/{id}/webhook", h.RedeployStackWebhook)
@@ -153,6 +160,7 @@ func NewRouter(h *handlers.APIHandler, webDir ...string) http.Handler {
 			r.Route("/nodes", func(r chi.Router) {
 				r.Get("/", h.ListNodes)
 				r.With(adminOnly).Post("/enrollment-token", h.GenerateNodeEnrollment)
+				r.Post("/{id}/ping", h.PingNode)
 				r.With(adminOnly).Delete("/{id}", h.DeleteNode)
 			})
 
