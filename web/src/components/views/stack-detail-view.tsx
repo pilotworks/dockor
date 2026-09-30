@@ -47,8 +47,9 @@ import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
 import { api } from '../../lib/api';
+import { useTabQuery } from '../../hooks/use-tab-query';
 
-type ActiveTab = 'services' | 'compose' | 'env' | 'logs' | 'webhook';
+const STACK_TABS = ['services', 'compose', 'env', 'logs', 'webhook'] as const;
 
 export function StackDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -64,7 +65,7 @@ export function StackDetailView() {
   const pullMutation = usePullStack();
   const deleteMutation = useDeleteStack();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('services');
+  const [activeTab, setActiveTab] = useTabQuery(STACK_TABS, 'services');
   const [yamlContent, setYamlContent] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);

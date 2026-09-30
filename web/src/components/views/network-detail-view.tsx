@@ -45,10 +45,11 @@ import {
 import { toast } from 'sonner';
 import { JsonViewer } from '../editor/json-viewer';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { useTabQuery } from '../../hooks/use-tab-query';
 
 const SYSTEM_NETWORKS = new Set(['bridge', 'host', 'none']);
 
-type ActiveTab = 'containers' | 'ipam' | 'options' | 'labels' | 'inspect';
+const NETWORK_TABS = ['containers', 'ipam', 'options', 'labels', 'inspect'] as const;
 
 export function NetworkDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -61,7 +62,7 @@ export function NetworkDetailView() {
   const connectMutation = useConnectNetwork();
   const disconnectMutation = useDisconnectNetwork();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('containers');
+  const [activeTab, setActiveTab] = useTabQuery(NETWORK_TABS, 'containers');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [selectedContainerId, setSelectedContainerId] = useState('');

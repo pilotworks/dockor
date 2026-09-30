@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useContainer, useContainerAction } from '../../hooks/use-containers';
 import { useNetworks, useConnectNetwork, useDisconnectNetwork } from '../../hooks/use-networks';
+import { useTabQuery } from '../../hooks/use-tab-query';
 import {
   IconBox,
   IconArrowLeft,
@@ -131,7 +132,10 @@ export function ContainerDetailView() {
   const { data: container, isLoading, refetch } = useContainer(id);
   const actionMutation = useContainerAction();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'network' | 'logs' | 'terminal' | 'stats' | 'inspect'>('overview');
+  const [activeTab, setActiveTab] = useTabQuery(
+    ['overview', 'network', 'logs', 'terminal', 'stats', 'inspect'] as const,
+    'overview'
+  );
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [envSearch, setEnvSearch] = useState('');

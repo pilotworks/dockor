@@ -27,8 +27,9 @@ import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
 import { TagImageModal } from '../images/tag-image-modal';
 import { PushImageModal } from '../images/push-image-modal';
+import { useTabQuery } from '../../hooks/use-tab-query';
 
-type ActiveTab = 'overview' | 'containers' | 'env' | 'layers' | 'inspect';
+const IMAGE_TABS = ['overview', 'containers', 'env', 'layers', 'inspect'] as const;
 
 export function ImageDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -39,7 +40,7 @@ export function ImageDetailView() {
   const { data: allImages = [] } = useImages();
   const deleteMutation = useDeleteImage();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [activeTab, setActiveTab] = useTabQuery(IMAGE_TABS, 'overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTagOpen, setIsTagOpen] = useState(false);

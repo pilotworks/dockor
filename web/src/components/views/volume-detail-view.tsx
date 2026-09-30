@@ -21,8 +21,9 @@ import { Card } from '../ui/card';
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../stores/use-dialog-store';
+import { useTabQuery } from '../../hooks/use-tab-query';
 
-type ActiveTab = 'overview' | 'containers' | 'inspect';
+const VOLUME_TABS = ['overview', 'containers', 'inspect'] as const;
 
 export function VolumeDetailView() {
   const { name } = useParams<{ name: string }>();
@@ -32,7 +33,7 @@ export function VolumeDetailView() {
   const { data: volume, isLoading, error, refetch, isFetching } = useVolume(decodedName);
   const deleteMutation = useDeleteVolume();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [activeTab, setActiveTab] = useTabQuery(VOLUME_TABS, 'overview');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTemplates } from '../../hooks/use-templates';
 import { useTemplateStore } from '../../stores/use-template-store';
 import { TemplateCard } from '../templates/template-card';
@@ -22,14 +23,34 @@ export function TemplatesView() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const catParam = searchParams.get('category');
+  const activeCategory = catParam || selectedCategory || 'All';
+
   const categories = ['All', ...new Set(templates.map((t) => t.metadata.category).filter(Boolean))];
+
+  const handleSelectCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (cat === 'All') {
+          next.delete('category');
+        } else {
+          next.set('category', cat);
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const filtered = templates.filter((t) => {
     const matchesQuery =
       t.metadata.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.metadata.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.metadata.tags?.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCat = selectedCategory === 'All' || t.metadata.category === selectedCategory;
+    const matchesCat = activeCategory === 'All' || t.metadata.category === activeCategory;
     return matchesQuery && matchesCat;
   });
 
@@ -105,12 +126,12 @@ export function TemplatesView() {
             cat === 'All'
               ? templates.length
               : templates.filter((t) => t.metadata.category === cat).length;
-          const isActive = selectedCategory === cat;
+          const isActive = activeCategory === cat;
 
           return (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => handleSelectCategory(cat)}
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all border cursor-pointer',
                 isActive
