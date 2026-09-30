@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/pilotworks/dockor/internal/version"
 )
 
 func main() {
@@ -13,7 +15,7 @@ func main() {
 	token := flag.String("token", "", "Agent enrollment token")
 	flag.Parse()
 
-	log.Printf("Starting Dockor Remote Node Agent...")
+	log.Printf("Starting Dockor Remote Node Agent v%s (commit: %s, built: %s)...", version.Version, version.GitCommit, version.BuildDate)
 	log.Printf("Connecting to control plane: %s", *serverURL)
 	if *token == "" {
 		log.Println("Notice: Running in unauthenticated loopback mode without enrollment token")

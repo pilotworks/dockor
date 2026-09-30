@@ -16,13 +16,14 @@ import (
 	"github.com/pilotworks/dockor/internal/models"
 	"github.com/pilotworks/dockor/internal/repository"
 	"github.com/pilotworks/dockor/internal/service"
+	"github.com/pilotworks/dockor/internal/version"
 )
 
 func main() {
 	cfg := config.Load()
 	ctx := context.Background()
 
-	log.Printf("Starting Dockor server on :%d...", cfg.Port)
+	log.Printf("Starting Dockor server v%s (commit: %s, built: %s) on :%d...", version.Version, version.GitCommit, version.BuildDate, cfg.Port)
 	log.Printf("Database path: %s", cfg.DBPath)
 
 	// 1. Initialize SQLite Database
