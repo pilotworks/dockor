@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"sort"
+	"strings"
 
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/pilotworks/dockor/internal/models"
 )
@@ -450,4 +454,322 @@ func (ds *DockerService) DisconnectNetwork(ctx context.Context, networkID string
 	}
 	return nil
 }
+
+// Volume Operations
+
+func (ds *DockerService) ListVolumes(ctx context.Context) ([]models.VolumeSummary, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	volRes, err := ds.cli.VolumeList(ctx, client.VolumeListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list volumes: %w", err)
+	}
+
+	// Fetch containers to map mounted volumes
+	volToContainers := make(map[string][]models.VolumeContainer)
+	if contList, err := ds.cli.ContainerList(ctx, client.ContainerListOptions{All: true}); err == nil {
+		for _, c := range contList.Items {
+			name := c.ID
+			if len(c.Names) > 0 {
+				name = strings.TrimPrefix(c.Names[0], "/")
+			}
+			for _, m := range c.Mounts {
+				if m.Type == "volume" && m.Name != "" {
+					volToContainers[m.Name] = append(volToContainers[m.Name], models.VolumeContainer{
+						ID:          c.ID,
+						Name:        name,
+						State:       string(c.State),
+						Destination: m.Destination,
+						Mode:        m.Mode,
+						RW:          m.RW,
+					})
+				}
+			}
+		}
+	}
+
+	summaries := make([]models.VolumeSummary, 0, len(volRes.Items))
+	for _, v := range volRes.Items {
+		mounted := volToContainers[v.Name]
+		if mounted == nil {
+			mounted = []models.VolumeContainer{}
+		}
+
+		var usage *models.VolumeUsageData
+		if v.UsageData != nil {
+			usage = &models.VolumeUsageData{
+				RefCount: v.UsageData.RefCount,
+				Size:     v.UsageData.Size,
+			}
+		}
+
+		summaries = append(summaries, models.VolumeSummary{
+			Name:       v.Name,
+			Driver:     v.Driver,
+			Scope:      v.Scope,
+			Mountpoint: v.Mountpoint,
+			CreatedAt:  v.CreatedAt,
+			Labels:     v.Labels,
+			Options:    v.Options,
+			Status:     v.Status,
+			UsageData:  usage,
+			Containers: mounted,
+			InUse:      len(mounted) > 0,
+		})
+	}
+
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Name < summaries[j].Name
+	})
+
+	return summaries, nil
+}
+
+func (ds *DockerService) InspectVolume(ctx context.Context, name string) (*models.VolumeSummary, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.VolumeInspect(ctx, name, client.VolumeInspectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect volume %s: %w", name, err)
+	}
+
+	v := res.Volume
+	var mounted []models.VolumeContainer
+	if contList, err := ds.cli.ContainerList(ctx, client.ContainerListOptions{All: true}); err == nil {
+		for _, c := range contList.Items {
+			cName := c.ID
+			if len(c.Names) > 0 {
+				cName = strings.TrimPrefix(c.Names[0], "/")
+			}
+			for _, m := range c.Mounts {
+				if m.Type == "volume" && m.Name == name {
+					mounted = append(mounted, models.VolumeContainer{
+						ID:          c.ID,
+						Name:        cName,
+						State:       string(c.State),
+						Destination: m.Destination,
+						Mode:        m.Mode,
+						RW:          m.RW,
+					})
+				}
+			}
+		}
+	}
+	if mounted == nil {
+		mounted = []models.VolumeContainer{}
+	}
+
+	var usage *models.VolumeUsageData
+	if v.UsageData != nil {
+		usage = &models.VolumeUsageData{
+			RefCount: v.UsageData.RefCount,
+			Size:     v.UsageData.Size,
+		}
+	}
+
+	return &models.VolumeSummary{
+		Name:       v.Name,
+		Driver:     v.Driver,
+		Scope:      v.Scope,
+		Mountpoint: v.Mountpoint,
+		CreatedAt:  v.CreatedAt,
+		Labels:     v.Labels,
+		Options:    v.Options,
+		Status:     v.Status,
+		UsageData:  usage,
+		Containers: mounted,
+		InUse:      len(mounted) > 0,
+	}, nil
+}
+
+func (ds *DockerService) CreateVolume(ctx context.Context, req models.CreateVolumeRequest) (*volume.Volume, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	driver := req.Driver
+	if driver == "" {
+		driver = "local"
+	}
+
+	opts := client.VolumeCreateOptions{
+		Name:       req.Name,
+		Driver:     driver,
+		DriverOpts: req.DriverOpts,
+		Labels:     req.Labels,
+	}
+
+	res, err := ds.cli.VolumeCreate(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	return &res.Volume, nil
+}
+
+func (ds *DockerService) RemoveVolume(ctx context.Context, name string, force bool) error {
+	if ds.cli == nil {
+		return fmt.Errorf("docker client not initialized")
+	}
+	_, err := ds.cli.VolumeRemove(ctx, name, client.VolumeRemoveOptions{Force: force})
+	if err != nil {
+		return fmt.Errorf("failed to remove volume %s: %w", name, err)
+	}
+	return nil
+}
+
+func (ds *DockerService) PruneVolumes(ctx context.Context) (*volume.PruneReport, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+	res, err := ds.cli.VolumePrune(ctx, client.VolumePruneOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to prune volumes: %w", err)
+	}
+	return &res.Report, nil
+}
+
+// Image Operations
+
+func (ds *DockerService) ListImages(ctx context.Context) ([]models.ImageSummaryItem, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	imgRes, err := ds.cli.ImageList(ctx, client.ImageListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list images: %w", err)
+	}
+
+	// Map container to image ID / Image string
+	imageToContainers := make(map[string][]models.ImageContainerRef)
+	if contList, err := ds.cli.ContainerList(ctx, client.ContainerListOptions{All: true}); err == nil {
+		for _, c := range contList.Items {
+			cName := c.ID
+			if len(c.Names) > 0 {
+				cName = strings.TrimPrefix(c.Names[0], "/")
+			}
+			ref := models.ImageContainerRef{
+				ID:    c.ID,
+				Name:  cName,
+				State: string(c.State),
+			}
+			if c.ImageID != "" {
+				imageToContainers[c.ImageID] = append(imageToContainers[c.ImageID], ref)
+			}
+			if c.Image != "" {
+				imageToContainers[c.Image] = append(imageToContainers[c.Image], ref)
+			}
+		}
+	}
+
+	summaries := make([]models.ImageSummaryItem, 0, len(imgRes.Items))
+	for _, img := range imgRes.Items {
+		shortID := img.ID
+		if strings.HasPrefix(shortID, "sha256:") {
+			shortID = strings.TrimPrefix(shortID, "sha256:")
+		}
+		if len(shortID) > 12 {
+			shortID = shortID[:12]
+		}
+
+		usedMap := make(map[string]models.ImageContainerRef)
+		if list, ok := imageToContainers[img.ID]; ok {
+			for _, item := range list {
+				usedMap[item.ID] = item
+			}
+		}
+		for _, tag := range img.RepoTags {
+			if list, ok := imageToContainers[tag]; ok {
+				for _, item := range list {
+					usedMap[item.ID] = item
+				}
+			}
+		}
+
+		usedBy := make([]models.ImageContainerRef, 0, len(usedMap))
+		for _, item := range usedMap {
+			usedBy = append(usedBy, item)
+		}
+
+		inUse := len(usedBy) > 0 || img.Containers > 0
+
+		summaries = append(summaries, models.ImageSummaryItem{
+			ID:          img.ID,
+			ShortID:     shortID,
+			RepoTags:    img.RepoTags,
+			RepoDigests: img.RepoDigests,
+			Created:     img.Created,
+			Size:        img.Size,
+			SharedSize:  img.SharedSize,
+			Labels:      img.Labels,
+			Containers:  int64(len(usedBy)),
+			InUse:       inUse,
+			UsedBy:      usedBy,
+		})
+	}
+
+	// Sort newest first
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Created > summaries[j].Created
+	})
+
+	return summaries, nil
+}
+
+func (ds *DockerService) InspectImage(ctx context.Context, id string) (*image.InspectResponse, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ImageInspect(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect image %s: %w", id, err)
+	}
+	return &res.InspectResponse, nil
+}
+
+func (ds *DockerService) PullImage(ctx context.Context, imageRef string) (io.ReadCloser, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ImagePull(ctx, imageRef, client.ImagePullOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull image %s: %w", imageRef, err)
+	}
+	return res, nil
+}
+
+func (ds *DockerService) RemoveImage(ctx context.Context, id string, force bool) ([]image.DeleteResponse, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ImageRemove(ctx, id, client.ImageRemoveOptions{
+		Force:         force,
+		PruneChildren: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove image %s: %w", id, err)
+	}
+	return res.Items, nil
+}
+
+func (ds *DockerService) PruneImages(ctx context.Context, danglingOnly bool) (*image.PruneReport, error) {
+	if ds.cli == nil {
+		return nil, fmt.Errorf("docker client not initialized")
+	}
+
+	res, err := ds.cli.ImagePrune(ctx, client.ImagePruneOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to prune images: %w", err)
+	}
+	return &res.Report, nil
+}
+
 

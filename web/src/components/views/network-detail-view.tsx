@@ -44,6 +44,7 @@ import {
 } from '../ui/select';
 import { toast } from 'sonner';
 import { JsonViewer } from '../editor/json-viewer';
+import { confirmDialog } from '../../stores/use-dialog-store';
 
 const SYSTEM_NETWORKS = new Set(['bridge', 'host', 'none']);
 
@@ -82,7 +83,14 @@ export function NetworkDetailView() {
       return;
     }
 
-    if (confirm(`Are you sure you want to delete network "${network.Name}"?`)) {
+    const confirmed = await confirmDialog({
+      title: 'Delete Network',
+      description: `Are you sure you want to delete network "${network.Name}"? All connected containers will lose their network interfaces on this network.`,
+      confirmText: 'Delete Network',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       setIsActionLoading(true);
       try {
         await deleteMutation.mutateAsync(id);
@@ -116,7 +124,14 @@ export function NetworkDetailView() {
 
   const handleDisconnectContainer = async (containerId: string, containerName: string) => {
     if (!id) return;
-    if (confirm(`Disconnect container "${containerName}" from this network?`)) {
+    const confirmed = await confirmDialog({
+      title: 'Disconnect Container',
+      description: `Are you sure you want to disconnect container "${containerName}" from this network?`,
+      confirmText: 'Disconnect',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       try {
         await disconnectMutation.mutateAsync({
           networkId: id,

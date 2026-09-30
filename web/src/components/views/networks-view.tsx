@@ -19,6 +19,7 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { CreateNetworkModal } from '../networks/create-network-modal';
 import { toast } from 'sonner';
+import { confirmDialog } from '../../stores/use-dialog-store';
 
 const SYSTEM_NETWORKS = new Set(['bridge', 'host', 'none']);
 
@@ -45,7 +46,14 @@ export function NetworksView() {
       return;
     }
 
-    if (confirm(`Are you sure you want to delete network "${netName}"? All connected containers may lose network access.`)) {
+    const confirmed = await confirmDialog({
+      title: 'Delete Network',
+      description: `Are you sure you want to delete network "${netName}"? All connected containers may lose network connectivity.`,
+      confirmText: 'Delete Network',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       try {
         await deleteMutation.mutateAsync(netId);
         toast.success(`Network "${netName}" deleted`);

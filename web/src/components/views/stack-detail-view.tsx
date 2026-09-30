@@ -45,6 +45,7 @@ import { ComposeEditor } from '../editor/compose-editor';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { toast } from 'sonner';
+import { confirmDialog } from '../../stores/use-dialog-store';
 
 type ActiveTab = 'services' | 'compose' | 'env' | 'logs';
 
@@ -168,7 +169,15 @@ export function StackDetailView() {
 
   const handleDelete = async () => {
     if (!id || !stack) return;
-    if (confirm(`Are you sure you want to delete stack "${stack.name}" and remove all containers?`)) {
+
+    const confirmed = await confirmDialog({
+      title: 'Delete Stack',
+      description: `Are you sure you want to delete stack "${stack.name}" and remove all its containers?`,
+      confirmText: 'Delete Stack',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       setIsActionLoading(true);
       try {
         await deleteMutation.mutateAsync({ id, deleteVolumes: false });

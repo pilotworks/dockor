@@ -3,6 +3,8 @@ import {
   IconStack2,
   IconBox,
   IconNetwork,
+  IconDatabase,
+  IconPhoto,
   IconServer,
   IconCpu,
   IconExternalLink,
@@ -18,6 +20,8 @@ import { useContainers } from '../../hooks/use-containers';
 import { useStacks } from '../../hooks/use-stacks';
 import { useTemplates } from '../../hooks/use-templates';
 import { useNetworks } from '../../hooks/use-networks';
+import { useVolumes } from '../../hooks/use-volumes';
+import { useImages } from '../../hooks/use-images';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 import { DockorLogo } from '../brand/dockor-logo';
@@ -31,6 +35,8 @@ export function Sidebar() {
   const { data: stacks = [] } = useStacks();
   const { data: templates = [] } = useTemplates();
   const { data: networks = [] } = useNetworks();
+  const { data: volumes = [] } = useVolumes();
+  const { data: images = [] } = useImages();
 
   const runningContainers = containers.filter((c) => c.state === 'running').length;
   const isDockerConnected = health?.docker === 'connected';
@@ -60,6 +66,18 @@ export function Sidebar() {
       label: 'Networks',
       icon: IconNetwork,
       badge: networks.length > 0 ? `${networks.length}` : undefined,
+    },
+    {
+      path: '/volumes',
+      label: 'Volumes',
+      icon: IconDatabase,
+      badge: volumes.length > 0 ? `${volumes.length}` : undefined,
+    },
+    {
+      path: '/images',
+      label: 'Images',
+      icon: IconPhoto,
+      badge: images.length > 0 ? `${images.length}` : undefined,
     },
     {
       path: '/nodes',

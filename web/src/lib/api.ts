@@ -187,6 +187,67 @@ export const api = {
       body: JSON.stringify({ container_id: containerId, force }),
     }).then(handleResponse<{ status: string }>),
 
+  // Volumes
+  getVolumes: () => fetch(`${API_BASE}/volumes`).then(handleResponse<import('../types').VolumeSummary[]>),
+  getVolume: (name: string) => fetch(`${API_BASE}/volumes/${encodeURIComponent(name)}`).then(handleResponse<import('../types').VolumeSummary>),
+  createVolume: (data: import('../types').CreateVolumePayload) =>
+    fetch(`${API_BASE}/volumes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(handleResponse<any>),
+  deleteVolume: (name: string, force = false) =>
+    fetch(`${API_BASE}/volumes/${encodeURIComponent(name)}?force=${force}`, { method: 'DELETE' }).then(handleResponse<{ message: string }>),
+  pruneVolumes: () =>
+    fetch(`${API_BASE}/volumes/prune`, { method: 'POST' }).then(handleResponse<any>),
+
+  // Images
+  getImages: () => fetch(`${API_BASE}/images`).then(handleResponse<import('../types').ImageSummaryItem[]>),
+  getImage: (id: string) => fetch(`${API_BASE}/images/${encodeURIComponent(id)}`).then(handleResponse<import('../types').ImageInspectResponse>),
+  deleteImage: (id: string, force = false) =>
+    fetch(`${API_BASE}/images/${encodeURIComponent(id)}?force=${force}`, { method: 'DELETE' }).then(handleResponse<{ message: string; items: any[] }>),
+  pruneImages: (all = false) =>
+    fetch(`${API_BASE}/images/prune?all=${all}`, { method: 'POST' }).then(handleResponse<any>),
+  pullImage: async (image: string, onProgress?: (msg: any) => void) => {
+    const res = await fetch(`${API_BASE}/images/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || 'Failed to pull image');
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          onProgress?.(parsed);
+        } catch {
+          // ignore partial parse error
+        }
+      }
+    }
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer);
+        onProgress?.(parsed);
+      } catch {
+        // ignore
+      }
+    }
+  },
+
   // System
   getSystemDiskUsage: () =>
     fetch(`${API_BASE}/system/df`).then(handleResponse<import('../types').SystemDiskUsage>),

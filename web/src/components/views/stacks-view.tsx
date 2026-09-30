@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 import { ComposeEditor } from '../editor/compose-editor';
 import { CreateStackModal } from '../stacks/create-stack-modal';
+import { confirmDialog } from '../../stores/use-dialog-store';
 
 export function StacksView() {
   const { data: stacks = [], isLoading } = useStacks();
@@ -116,7 +117,14 @@ export function StacksView() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete stack "${name}" and stop all its containers?`)) {
+    const confirmed = await confirmDialog({
+      title: 'Delete Compose Stack',
+      description: `Are you sure you want to delete stack "${name}" and tear down all its associated containers?`,
+      confirmText: 'Delete Stack',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       try {
         await deleteMutation.mutateAsync({ id, deleteVolumes: false });
         toast.success(`Stack "${name}" deleted`);

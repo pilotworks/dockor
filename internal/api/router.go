@@ -80,6 +80,24 @@ func NewRouter(h *handlers.APIHandler) http.Handler {
 			r.Post("/{id}/disconnect", h.DisconnectNetwork)
 		})
 
+		// Volumes
+		r.Route("/volumes", func(r chi.Router) {
+			r.Get("/", h.ListVolumes)
+			r.Post("/", h.CreateVolume)
+			r.Post("/prune", h.PruneVolumes)
+			r.Get("/{name}", h.GetVolume)
+			r.Delete("/{name}", h.DeleteVolume)
+		})
+
+		// Images
+		r.Route("/images", func(r chi.Router) {
+			r.Get("/", h.ListImages)
+			r.Post("/pull", h.PullImage)
+			r.Post("/prune", h.PruneImages)
+			r.Get("/{id}", h.GetImage)
+			r.Delete("/{id}", h.DeleteImage)
+		})
+
 		// Nodes
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", h.ListNodes)

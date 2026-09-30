@@ -48,6 +48,7 @@ import {
 import { JsonViewer } from '../editor/json-viewer';
 import { toast } from 'sonner';
 import { useAppStore } from '../../stores/use-app-store';
+import { confirmDialog } from '../../stores/use-dialog-store';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -165,7 +166,14 @@ export function ContainerDetailView() {
 
   const handleDisconnectNetwork = async (netName: string, netId: string) => {
     if (!id) return;
-    if (confirm(`Are you sure you want to disconnect container from network "${netName}"?`)) {
+    const confirmed = await confirmDialog({
+      title: 'Disconnect Network',
+      description: `Are you sure you want to disconnect this container from network "${netName}"?`,
+      confirmText: 'Disconnect',
+      variant: 'destructive',
+    });
+
+    if (confirmed) {
       try {
         await disconnectMutation.mutateAsync({
           networkId: netId,

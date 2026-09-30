@@ -264,3 +264,85 @@ export interface CreateNetworkPayload {
   labels?: Record<string, string>;
 }
 
+export interface VolumeContainer {
+  id: string;
+  name: string;
+  state: string;
+  destination: string;
+  mode: string;
+  rw: boolean;
+}
+
+export interface VolumeUsageData {
+  ref_count: number;
+  size: number;
+}
+
+export interface VolumeSummary {
+  name: string;
+  driver: string;
+  scope: string;
+  mountpoint: string;
+  created_at: string;
+  labels: Record<string, string>;
+  options: Record<string, string>;
+  status?: Record<string, any>;
+  usage_data?: VolumeUsageData;
+  containers: VolumeContainer[];
+  in_use: boolean;
+}
+
+export interface CreateVolumePayload {
+  name: string;
+  driver?: string;
+  driver_opts?: Record<string, string>;
+  labels?: Record<string, string>;
+}
+
+export interface ImageContainerRef {
+  id: string;
+  name: string;
+  state: string;
+}
+
+export interface ImageSummaryItem {
+  id: string;
+  short_id: string;
+  repo_tags: string[];
+  repo_digests: string[];
+  created: number;
+  size: number;
+  shared_size: number;
+  labels: Record<string, string>;
+  containers: number;
+  in_use: boolean;
+  used_by: ImageContainerRef[];
+}
+
+export interface ImageInspectResponse {
+  Id: string;
+  RepoTags: string[];
+  RepoDigests: string[];
+  Comment?: string;
+  Created: string;
+  Author?: string;
+  Architecture: string;
+  Variant?: string;
+  Os: string;
+  Size: number;
+  Config?: {
+    Cmd?: string[];
+    Entrypoint?: string[];
+    Env?: string[];
+    ExposedPorts?: Record<string, any>;
+    WorkingDir?: string;
+    User?: string;
+    Labels?: Record<string, string>;
+  };
+  RootFS?: {
+    Type: string;
+    Layers?: string[];
+  };
+}
+
+
