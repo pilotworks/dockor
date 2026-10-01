@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2](https://github.com/pilotworks/dockor/compare/v0.1.1...v0.1.2) (2026-10-01)
+
+
+### Features
+
+* **agent:** implement remote node agent (dockor-agent) with reverse websocket tunnel and telemetry ([e83aec8](https://github.com/pilotworks/dockor/commit/e83aec8e7cb0efaa9ee6d2f5fa6ed2117e53f2b6))
+* **nodes:** add multi-host switching, remote container inspection, and node-aware actions ([27aa461](https://github.com/pilotworks/dockor/commit/27aa461e1479e276d3f33920fe7b7b5e054837a8))
+* **proxy,editor:** integrate caddy reverse proxy with automated ssl and add compose split-view visualizer ([3956691](https://github.com/pilotworks/dockor/commit/395669183323cb06270cb935b21d3ebfde1c6a70))
+* **templates:** enhance template management with search, pagination, and category counts ([982a5b3](https://github.com/pilotworks/dockor/commit/982a5b3a1e7c023dbf148c87b857a40170e9aac4))
+
+
+### Bug Fixes
+
+* **fe:** resolve UI alignment, light mode styling, and standardize common components ([5681779](https://github.com/pilotworks/dockor/commit/568177923440cd2706b70b15651fd605d3dc6907))
+* **ui:** correct topbar breadcrumbs for all routes and fix root navigation ([f750935](https://github.com/pilotworks/dockor/commit/f750935dad5d05a5dc15f647a485ea99e8f94afc))
+
 ## [0.1.1](https://github.com/pilotworks/dockor/compare/v0.1.0...v0.1.1) (2026-09-30)
 
 
