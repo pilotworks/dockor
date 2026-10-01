@@ -579,3 +579,129 @@ func (r *Repository) CountUsers(ctx context.Context) (int, error) {
 	return count, err
 }
 
+// Proxy Routes Management
+
+func (r *Repository) ListProxyRoutes(ctx context.Context) ([]models.ProxyRoute, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, domain, target_url, COALESCE(container_id, ''), COALESCE(stack_id, ''), ssl_mode, enabled, COALESCE(email, ''), created_at, updated_at
+		FROM proxy_routes ORDER BY domain ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var routes []models.ProxyRoute
+	for rows.Next() {
+		var pr models.ProxyRoute
+		var enabledInt int
+		err := rows.Scan(
+			&pr.ID, &pr.Domain, &pr.TargetURL, &pr.ContainerID, &pr.StackID,
+			&pr.SSLMode, &enabledInt, &pr.Email, &pr.CreatedAt, &pr.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		pr.Enabled = enabledInt == 1
+		routes = append(routes, pr)
+	}
+	return routes, rows.Err()
+}
+
+func (r *Repository) GetProxyRoute(ctx context.Context, id string) (*models.ProxyRoute, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT id, domain, target_url, COALESCE(container_id, ''), COALESCE(stack_id, ''), ssl_mode, enabled, COALESCE(email, ''), created_at, updated_at
+		FROM proxy_routes WHERE id = ?`, id)
+
+	var pr models.ProxyRoute
+	var enabledInt int
+	err := row.Scan(
+		&pr.ID, &pr.Domain, &pr.TargetURL, &pr.ContainerID, &pr.StackID,
+		&pr.SSLMode, &enabledInt, &pr.Email, &pr.CreatedAt, &pr.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("proxy route not found")
+		}
+		return nil, err
+	}
+	pr.Enabled = enabledInt == 1
+	return &pr, nil
+}
+
+func (r *Repository) GetProxyRouteByDomain(ctx context.Context, domain string) (*models.ProxyRoute, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT id, domain, target_url, COALESCE(container_id, ''), COALESCE(stack_id, ''), ssl_mode, enabled, COALESCE(email, ''), created_at, updated_at
+		FROM proxy_routes WHERE domain = ?`, domain)
+
+	var pr models.ProxyRoute
+	var enabledInt int
+	err := row.Scan(
+		&pr.ID, &pr.Domain, &pr.TargetURL, &pr.ContainerID, &pr.StackID,
+		&pr.SSLMode, &enabledInt, &pr.Email, &pr.CreatedAt, &pr.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	pr.Enabled = enabledInt == 1
+	return &pr, nil
+}
+
+func (r *Repository) CreateProxyRoute(ctx context.Context, route *models.ProxyRoute) error {
+	now := time.Now().UTC()
+	if route.ID == "" {
+		route.ID = "prx_" + hex.EncodeToString(func() []byte { b := make([]byte, 8); rand.Read(b); return b }())
+	}
+	route.CreatedAt = now
+	route.UpdatedAt = now
+
+	enabledInt := 0
+	if route.Enabled {
+		enabledInt = 1
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO proxy_routes (id, domain, target_url, container_id, stack_id, ssl_mode, enabled, email, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		route.ID, route.Domain, route.TargetURL, route.ContainerID, route.StackID,
+		string(route.SSLMode), enabledInt, route.Email, route.CreatedAt, route.UpdatedAt,
+	)
+	return err
+}
+
+func (r *Repository) UpdateProxyRoute(ctx context.Context, route *models.ProxyRoute) error {
+	now := time.Now().UTC()
+	route.UpdatedAt = now
+
+	enabledInt := 0
+	if route.Enabled {
+		enabledInt = 1
+	}
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE proxy_routes
+		SET domain = ?, target_url = ?, container_id = ?, stack_id = ?, ssl_mode = ?, enabled = ?, email = ?, updated_at = ?
+		WHERE id = ?`,
+		route.Domain, route.TargetURL, route.ContainerID, route.StackID,
+		string(route.SSLMode), enabledInt, route.Email, route.UpdatedAt, route.ID,
+	)
+	return err
+}
+
+func (r *Repository) DeleteProxyRoute(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM proxy_routes WHERE id = ?", id)
+	return err
+}
+
+func (r *Repository) ToggleProxyRoute(ctx context.Context, id string, enabled bool) error {
+	now := time.Now().UTC()
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+	_, err := r.db.ExecContext(ctx, "UPDATE proxy_routes SET enabled = ?, updated_at = ? WHERE id = ?", enabledInt, now, id)
+	return err
+}
+

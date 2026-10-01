@@ -252,3 +252,54 @@ type DockerDaemonEvent struct {
 	Attributes map[string]string `json:"attributes"`
 	Timestamp  int64             `json:"timestamp"`
 }
+
+type SSLMode string
+
+const (
+	SSLModeLetsEncrypt SSLMode = "letsencrypt"
+	SSLModeInternal    SSLMode = "internal"
+	SSLModeCustom      SSLMode = "custom"
+	SSLModeDisabled    SSLMode = "disabled"
+)
+
+type ProxyRoute struct {
+	ID          string    `json:"id"`
+	Domain      string    `json:"domain"`
+	TargetURL   string    `json:"target_url"`
+	ContainerID string    `json:"container_id,omitempty"`
+	StackID     string    `json:"stack_id,omitempty"`
+	SSLMode     SSLMode   `json:"ssl_mode"`
+	Enabled     bool      `json:"enabled"`
+	Email       string    `json:"email,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type CreateProxyRoutePayload struct {
+	Domain      string  `json:"domain"`
+	TargetURL   string  `json:"target_url"`
+	ContainerID string  `json:"container_id,omitempty"`
+	StackID     string  `json:"stack_id,omitempty"`
+	SSLMode     SSLMode `json:"ssl_mode,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Email       string  `json:"email,omitempty"`
+}
+
+type UpdateProxyRoutePayload struct {
+	Domain      string   `json:"domain"`
+	TargetURL   string   `json:"target_url"`
+	ContainerID string   `json:"container_id,omitempty"`
+	StackID     string   `json:"stack_id,omitempty"`
+	SSLMode     *SSLMode `json:"ssl_mode,omitempty"`
+	Enabled     *bool    `json:"enabled,omitempty"`
+	Email       string   `json:"email,omitempty"`
+}
+
+type CaddyStatus struct {
+	Running      bool   `json:"running"`
+	AdminURL     string `json:"admin_url"`
+	ConfigPath   string `json:"config_path"`
+	ActiveRoutes int    `json:"active_routes"`
+	Version      string `json:"version,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
+}

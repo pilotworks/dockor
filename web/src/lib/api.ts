@@ -526,4 +526,40 @@ export const api = {
     fetch(`${API_BASE}/users/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }).then(handleResponse<{ status: string; message: string; id: string }>),
+
+  // Reverse Proxy & Caddy SSL
+  getProxyRoutes: () =>
+    fetch(`${API_BASE}/proxy/routes`).then(handleResponse<import('../types').ProxyRoute[]>),
+  getProxyRoute: (id: string) =>
+    fetch(`${API_BASE}/proxy/routes/${encodeURIComponent(id)}`).then(handleResponse<import('../types').ProxyRoute>),
+  createProxyRoute: (payload: import('../types').CreateProxyRoutePayload) =>
+    fetch(`${API_BASE}/proxy/routes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<import('../types').ProxyRoute>),
+  updateProxyRoute: (id: string, payload: import('../types').UpdateProxyRoutePayload) =>
+    fetch(`${API_BASE}/proxy/routes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<import('../types').ProxyRoute>),
+  deleteProxyRoute: (id: string) =>
+    fetch(`${API_BASE}/proxy/routes/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).then(handleResponse<{ message: string }>),
+  toggleProxyRoute: (id: string, enabled?: boolean) =>
+    fetch(`${API_BASE}/proxy/routes/${encodeURIComponent(id)}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(enabled !== undefined ? { enabled } : {}),
+    }).then(handleResponse<import('../types').ProxyRoute>),
+  getProxyStatus: () =>
+    fetch(`${API_BASE}/proxy/status`).then(handleResponse<import('../types').CaddyStatus>),
+  syncProxy: () =>
+    fetch(`${API_BASE}/proxy/sync`, {
+      method: 'POST',
+    }).then(handleResponse<{ message: string }>),
+  getCaddyfile: () =>
+    fetch(`${API_BASE}/proxy/caddyfile`).then(handleResponse<{ caddyfile: string }>),
 };

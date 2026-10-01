@@ -164,6 +164,20 @@ func NewRouter(h *handlers.APIHandler, webDir ...string) http.Handler {
 				r.With(adminOnly).Delete("/{id}", h.DeleteNode)
 			})
 
+			// Reverse Proxy & SSL Automation
+			r.Route("/proxy", func(r chi.Router) {
+				r.Get("/routes", h.ListProxyRoutes)
+				r.Get("/routes/{id}", h.GetProxyRoute)
+				r.Get("/status", h.GetProxyStatus)
+				r.Get("/caddyfile", h.GetCaddyfile)
+
+				r.With(devOrAdmin).Post("/routes", h.CreateProxyRoute)
+				r.With(devOrAdmin).Put("/routes/{id}", h.UpdateProxyRoute)
+				r.With(devOrAdmin).Delete("/routes/{id}", h.DeleteProxyRoute)
+				r.With(devOrAdmin).Post("/routes/{id}/toggle", h.ToggleProxyRoute)
+				r.With(devOrAdmin).Post("/sync", h.SyncProxy)
+			})
+
 			// System & Events
 			r.Route("/system", func(r chi.Router) {
 				r.Get("/df", h.GetDiskUsage)

@@ -19,6 +19,7 @@ import { VolumeDetailView } from './components/views/volume-detail-view';
 import { ImagesView } from './components/views/images-view';
 import { ImageDetailView } from './components/views/image-detail-view';
 import { RegistriesView } from './components/views/registries-view';
+import { ProxyView } from './components/views/proxy-view';
 import { NodesView } from './components/views/nodes-view';
 import { Toaster } from './components/ui/toaster';
 import { ConfirmDialog } from './components/common/confirm-dialog';
@@ -60,6 +61,7 @@ export function App() {
               <Route path="/volumes/:name" element={<VolumeDetailView />} />
               <Route path="/images" element={<ImagesView />} />
               <Route path="/images/:id" element={<ImageDetailView />} />
+              <Route path="/proxy" element={<ProxyView />} />
               <Route path="/registries" element={<RegistriesView />} />
               <Route path="/nodes" element={<NodesView />} />
 

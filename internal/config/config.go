@@ -11,14 +11,16 @@ import (
 )
 
 type Config struct {
-	Port         int
-	DataDir      string
-	DBPath       string
-	DockerHost   string
-	JWTSecret    string
-	TemplatesDir string
-	SecretKey    string
-	WebDir       string
+	Port             int
+	DataDir          string
+	DBPath           string
+	DockerHost       string
+	JWTSecret        string
+	TemplatesDir     string
+	SecretKey        string
+	WebDir           string
+	CaddyAdminURL    string
+	LetsEncryptEmail string
 }
 
 func Load() *Config {
@@ -92,14 +94,23 @@ func Load() *Config {
 		}
 	}
 
+	caddyAdminURL := os.Getenv("DOCKOR_CADDY_ADMIN_URL")
+	if caddyAdminURL == "" {
+		caddyAdminURL = "http://localhost:2019"
+	}
+
+	letsEncryptEmail := os.Getenv("DOCKOR_LETSENCRYPT_EMAIL")
+
 	return &Config{
-		Port:         port,
-		DataDir:      dataDir,
-		DBPath:       dbPath,
-		DockerHost:   dockerHost,
-		JWTSecret:    jwtSecret,
-		TemplatesDir: templatesDir,
-		SecretKey:    secretKey,
-		WebDir:       webDir,
+		Port:             port,
+		DataDir:          dataDir,
+		DBPath:           dbPath,
+		DockerHost:       dockerHost,
+		JWTSecret:        jwtSecret,
+		TemplatesDir:     templatesDir,
+		SecretKey:        secretKey,
+		WebDir:           webDir,
+		CaddyAdminURL:    caddyAdminURL,
+		LetsEncryptEmail: letsEncryptEmail,
 	}
 }

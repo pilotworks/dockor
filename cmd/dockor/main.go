@@ -128,9 +128,16 @@ func main() {
 	agentHub := agent.NewAgentHub(repo)
 	agentHub.StartLivenessChecker(ctx)
 
-	// 6. Initialize HTTP API Handler and Router
+	// 6. Initialize Caddy Reverse Proxy Service
+	caddySvc := service.NewCaddyService(repo, cfg.DataDir, cfg.CaddyAdminURL, cfg.LetsEncryptEmail)
+	if err := caddySvc.Sync(ctx); err != nil {
+		log.Printf("Notice: Initial proxy sync: %v", err)
+	}
+
+	// 7. Initialize HTTP API Handler and Router
 	handler := handlers.NewAPIHandler(repo, dockerSvc, templateEng, composeSvc)
 	handler.SetAgentHub(agentHub)
+	handler.SetCaddyService(caddySvc)
 	handler.SetSecretKey(cfg.SecretKey)
 	handler.SetJWTSecret(cfg.JWTSecret)
 

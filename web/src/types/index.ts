@@ -496,5 +496,49 @@ export interface UpdateUserPayload {
   password?: string;
 }
 
+export type SSLMode = 'letsencrypt' | 'internal' | 'custom' | 'disabled';
+
+export interface ProxyRoute {
+  id: string;
+  domain: string;
+  target_url: string;
+  container_id?: string;
+  stack_id?: string;
+  ssl_mode: SSLMode;
+  enabled: boolean;
+  email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProxyRoutePayload {
+  domain: string;
+  target_url: string;
+  container_id?: string;
+  stack_id?: string;
+  ssl_mode?: SSLMode;
+  enabled?: boolean;
+  email?: string;
+}
+
+export interface UpdateProxyRoutePayload {
+  domain?: string;
+  target_url?: string;
+  container_id?: string;
+  stack_id?: string;
+  ssl_mode?: SSLMode;
+  enabled?: boolean;
+  email?: string;
+}
+
+export interface CaddyStatus {
+  running: boolean;
+  admin_url: string;
+  config_path: string;
+  active_routes: number;
+  version?: string;
+  last_error?: string;
+}
+
 
 

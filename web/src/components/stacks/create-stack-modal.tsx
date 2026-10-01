@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useDeployStack } from '../../hooks/use-stacks';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
+import { ComposeSplitVisualizer } from '../editor/compose-split-visualizer';
 import {
   Select,
   SelectContent,
@@ -220,7 +220,7 @@ export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModa
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-3xl rounded-2xl bg-white dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] p-6 shadow-2xl space-y-5 text-zinc-900 dark:text-zinc-100 max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-4xl lg:max-w-5xl rounded-2xl bg-white dark:bg-[#111115] border border-zinc-200 dark:border-[#23232A] p-6 shadow-2xl space-y-5 text-zinc-900 dark:text-zinc-100 max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -284,24 +284,21 @@ export function CreateStackModal({ isOpen, onClose, onSuccess }: CreateStackModa
             </div>
           </div>
 
-          {/* Compose YAML Editor */}
+          {/* Compose YAML Split Visualizer */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
                 <IconFileCode className="w-4 h-4 text-purple-500" />
-                <span>docker-compose.yml</span>
+                <span>docker-compose.yml Architecture</span>
               </label>
               <Badge variant="outline" className="text-[10px] font-mono">
                 YAML Spec 3.8+
               </Badge>
             </div>
-            <Textarea
+            <ComposeSplitVisualizer
               value={composeYaml}
-              onChange={(e) => setComposeYaml(e.target.value)}
-              rows={12}
-              className="p-4 font-mono text-xs resize-y leading-relaxed"
-              placeholder="version: '3.8'&#10;services:&#10;  ..."
-              required
+              onChange={setComposeYaml}
+              height="380px"
             />
           </div>
 

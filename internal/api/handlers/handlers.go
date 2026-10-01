@@ -23,6 +23,7 @@ type APIHandler struct {
 	templateEng *service.TemplateEngine
 	composeSvc  *service.ComposeService
 	agentHub    *agent.AgentHub
+	caddySvc    *service.CaddyService
 	secretKey   string
 	jwtSecret   string
 }
@@ -35,6 +36,14 @@ func NewAPIHandler(repo *repository.Repository, dockerSvc *service.DockerService
 		composeSvc:  composeSvc,
 		jwtSecret:   "dockor-default-jwt-secret-dev",
 	}
+}
+
+func (h *APIHandler) SetCaddyService(caddySvc *service.CaddyService) {
+	h.caddySvc = caddySvc
+}
+
+func (h *APIHandler) CaddyService() *service.CaddyService {
+	return h.caddySvc
 }
 
 func (h *APIHandler) SetAgentHub(agentHub *agent.AgentHub) {

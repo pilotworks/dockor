@@ -15,6 +15,7 @@ import {
   IconMoon,
   IconServer2,
   IconUsers,
+  IconWorld,
 } from '@tabler/icons-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../stores/use-app-store';
@@ -27,6 +28,7 @@ import { useNetworks } from '../../hooks/use-networks';
 import { useVolumes } from '../../hooks/use-volumes';
 import { useImages } from '../../hooks/use-images';
 import { useRegistries } from '../../hooks/use-registries';
+import { useProxyRoutes } from '../../hooks/use-proxy';
 import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 import { DockorLogo } from '../brand/dockor-logo';
@@ -44,6 +46,7 @@ export function Sidebar() {
   const { data: volumes = [] } = useVolumes();
   const { data: images = [] } = useImages();
   const { data: registries = [] } = useRegistries();
+  const { data: proxyRoutes = [] } = useProxyRoutes();
 
   const totalTemplates = templatesData?.total ?? 0;
   const runningContainers = containers.filter((c) => c.state === 'running').length;
@@ -91,6 +94,12 @@ export function Sidebar() {
       label: 'Images',
       icon: IconDisc,
       badge: images.length > 0 ? `${images.length}` : undefined,
+    },
+    {
+      path: '/proxy',
+      label: 'Proxy & SSL',
+      icon: IconWorld,
+      badge: proxyRoutes.length > 0 ? `${proxyRoutes.length}` : undefined,
     },
     {
       path: '/registries',

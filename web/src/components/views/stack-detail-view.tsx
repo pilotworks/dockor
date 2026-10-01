@@ -42,7 +42,7 @@ import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { ComposeEditor } from '../editor/compose-editor';
+import { ComposeSplitVisualizer } from '../editor/compose-split-visualizer';
 import { ContainerTerminalModal } from '../containers/container-terminal-modal';
 import { ContainerLogsModal } from '../containers/container-logs-modal';
 import { toast } from 'sonner';
@@ -734,12 +734,12 @@ export function StackDetailView() {
             </div>
           </div>
 
-          {/* Monaco Editor Container */}
-          <div className="h-[600px] w-full bg-white dark:bg-[#0A0A0D]">
-            <ComposeEditor
+          {/* Split-View Visualizer & Monaco Editor */}
+          <div className="w-full bg-white dark:bg-[#0A0A0D]">
+            <ComposeSplitVisualizer
               value={yamlContent}
               onChange={(val) => setYamlContent(val || '')}
-              height="100%"
+              height="650px"
             />
           </div>
         </Card>
