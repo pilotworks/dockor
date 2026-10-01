@@ -52,100 +52,120 @@ export function Topbar() {
     toast.success('Data synchronized with Docker Engine');
   };
 
-  const titles: Record<string, { title: string; subtitle: string }> = {
-    templates: {
-      title: 'Application Catalog',
-      subtitle: 'Verified container stacks with dynamic schema configurations',
-    },
-    stacks: {
-      title: 'Compose Stacks',
-      subtitle: 'Multi-service declarative deployments running on this node',
-    },
-    containers: {
-      title: 'Container Engine',
-      subtitle: 'Direct inspection of Docker containers, ports, and lifecycle states',
-    },
-    networks: {
-      title: 'Virtual Networks',
-      subtitle: 'Software-defined networking namespaces, subnets, and container routing',
-    },
-    nodes: {
-      title: 'Cluster Topology',
-      subtitle: 'Connected Docker engines and remote agent endpoints',
-    },
-    registries: {
-      title: 'Container Registries',
-      subtitle: 'Encrypted Docker Hub, GHCR, and private registry credentials',
-    },
-    users: {
-      title: 'Users & Access Control',
-      subtitle: 'Operator accounts, security roles, and RBAC permissions',
-    },
-  };
+  interface BreadcrumbItem {
+    label: string;
+    path?: string;
+  }
 
   const path = location.pathname;
-  const isStackDetail = /^\/stacks\/[^/]+$/.test(path);
-  const isContainerDetail = /^\/containers\/[^/]+$/.test(path);
-  const isNetworkDetail = /^\/networks\/[^/]+$/.test(path);
 
-  const current = path.startsWith('/stacks')
-    ? titles.stacks
-    : path.startsWith('/containers')
-    ? titles.containers
-    : path.startsWith('/networks')
-    ? titles.networks
-    : path.startsWith('/nodes')
-    ? titles.nodes
-    : titles.templates;
+  const getBreadcrumbs = (): BreadcrumbItem[] => {
+    // 1. Detail Pages
+    if (/^\/stacks\/[^/]+$/.test(path)) {
+      return [
+        { label: 'Stacks (Compose)', path: '/stacks' },
+        { label: 'Stack Detail' },
+      ];
+    }
+    if (/^\/containers\/[^/]+$/.test(path)) {
+      return [
+        { label: 'Containers', path: '/containers' },
+        { label: 'Container Detail' },
+      ];
+    }
+    if (/^\/networks\/[^/]+$/.test(path)) {
+      return [
+        { label: 'Networks', path: '/networks' },
+        { label: 'Network Detail' },
+      ];
+    }
+    if (/^\/volumes\/[^/]+$/.test(path)) {
+      return [
+        { label: 'Volumes', path: '/volumes' },
+        { label: 'Volume Detail' },
+      ];
+    }
+    if (/^\/images\/[^/]+$/.test(path)) {
+      return [
+        { label: 'Images', path: '/images' },
+        { label: 'Image Detail' },
+      ];
+    }
+
+    // 2. Main Platform Sections
+    if (path === '/' || path === '/dashboard') {
+      return [{ label: 'Dashboard' }];
+    }
+    if (path.startsWith('/templates')) {
+      return [{ label: 'App Catalog' }];
+    }
+    if (path.startsWith('/stacks')) {
+      return [{ label: 'Stacks (Compose)' }];
+    }
+    if (path.startsWith('/containers')) {
+      return [{ label: 'Containers' }];
+    }
+    if (path.startsWith('/networks')) {
+      return [{ label: 'Networks' }];
+    }
+    if (path.startsWith('/volumes')) {
+      return [{ label: 'Volumes' }];
+    }
+    if (path.startsWith('/images')) {
+      return [{ label: 'Images' }];
+    }
+    if (path.startsWith('/proxy')) {
+      return [{ label: 'Proxy & SSL' }];
+    }
+    if (path.startsWith('/registries')) {
+      return [{ label: 'Registries' }];
+    }
+    if (path.startsWith('/nodes')) {
+      return [{ label: 'Cluster Nodes' }];
+    }
+    if (path.startsWith('/users')) {
+      return [{ label: 'Users & RBAC' }];
+    }
+
+    return [{ label: 'Dashboard' }];
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-[#1F1F24] bg-white/90 dark:bg-[#09090B]/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20 select-none transition-colors">
       {/* Breadcrumb & Section Name */}
-      <div className="flex items-center gap-2">
-        <span
-          className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300"
-          onClick={() => navigate('/templates')}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="font-semibold text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
         >
           Dockor
-        </span>
-        <span className="text-zinc-300 dark:text-zinc-700">/</span>
-        {isStackDetail ? (
-          <>
-            <span
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={() => navigate('/stacks')}
-            >
-              Compose Stacks
-            </span>
-            <span className="text-zinc-300 dark:text-zinc-700">/</span>
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Stack Detail</span>
-          </>
-        ) : isContainerDetail ? (
-          <>
-            <span
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={() => navigate('/containers')}
-            >
-              Containers
-            </span>
-            <span className="text-zinc-300 dark:text-zinc-700">/</span>
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Container Detail</span>
-          </>
-        ) : isNetworkDetail ? (
-          <>
-            <span
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={() => navigate('/networks')}
-            >
-              Networks
-            </span>
-            <span className="text-zinc-300 dark:text-zinc-700">/</span>
-            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Network Detail</span>
-          </>
-        ) : (
-          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{current.title}</span>
-        )}
-      </div>
+        </button>
+
+        {breadcrumbs.map((crumb, idx) => {
+          const isLast = idx === breadcrumbs.length - 1;
+          return (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="text-zinc-300 dark:text-zinc-700 select-none">/</span>
+              {crumb.path && !isLast ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(crumb.path!)}
+                  className="font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                >
+                  {crumb.label}
+                </button>
+              ) : (
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {crumb.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </nav>
 
       {/* Global Actions */}
       <div className="flex items-center gap-2.5">
