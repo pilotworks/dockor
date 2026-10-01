@@ -1,6 +1,8 @@
-# Dockor
-
 <div align="center">
+
+<img src="docs/assets/logo.svg" alt="Dockor Logo" width="76" height="76" />
+
+# Dockor
 
 **Modern, lightweight container and dynamic application template management platform.**
 
@@ -12,6 +14,11 @@
 [![Release Please](https://img.shields.io/badge/Release-Google_Release_Please-blue?style=flat&logo=google)](.github/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
+<br />
+<br />
+
+<img src="docs/assets/dashboard-preview.png" alt="Dockor Web Dashboard" width="100%" />
+
 </div>
 
 ---
@@ -19,6 +26,8 @@
 ## Key Features
 
 - **Unified Single-Port Architecture**: Web Dashboard, REST API, interactive WebSocket TTY, and real-time SSE Docker event stream are served on a single port (`:9000`).
+- **Integrated Reverse Proxy & Automated SSL**: Embedded Caddy module providing zero-touch Let's Encrypt / ZeroSSL HTTPS certificates, custom domain routing, and zero-downtime hot reloading.
+- **Split-View Visualizer for Compose**: Interactive two-way real-time synchronization between visual service cards form and Monaco YAML editor.
 - **Dynamic Template Engine**: Deploy multi-container stacks with auto-generated credentials (`random_string`, `uuid`), intelligent port collision scanning, and schema-driven input forms.
 - **Universal Template Compatibility**: Native ingestion adapter for community `templates-2.0.json` catalogs.
 - **Container File Manager**: In-browser directory traversal, preview and edit configuration files directly with Monaco Editor, file upload, download, and deletion.
